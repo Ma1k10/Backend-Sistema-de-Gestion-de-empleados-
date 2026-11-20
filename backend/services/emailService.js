@@ -1,12 +1,47 @@
+/**
+ * SERVICIO DE EMAIL (SENDGRID)
+ * Archivo: backend/services/emailService.js
+ * Descripción: Servicio para envío de emails usando SendGrid API.
+ *              Proporciona métodos para enviar diferentes tipos de notificaciones
+ *              por email con plantillas HTML personalizadas.
+ *
+ * MÉTODOS:
+ * - sendEmail: Enviar email genérico
+ * - sendWelcomeEmail: Enviar email de bienvenida
+ * - sendPasswordResetEmail: Enviar email de restablecimiento de contraseña
+ * - sendScheduleChangeNotification: Enviar notificación de cambio de horario
+ * - sendEmployeeApprovalNotification: Enviar notificación de aprobación de empleado
+ * - sendEmployeeRejectionNotification: Enviar notificación de rechazo de empleado
+ * - sendScheduleAssignedEmail: Enviar email de horario asignado
+ */
+
 const sgMail = require('@sendgrid/mail');
 
+/**
+ * Clase EmailService
+ * Servicio para envío de emails usando SendGrid
+ */
 class EmailService {
+  /**
+   * Constructor de EmailService
+   * Inicializa la configuración de SendGrid y variables de entorno
+   */
   constructor() {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     this.fromEmail = process.env.SENDGRID_FROM_EMAIL;
     this.frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
   }
 
+  /**
+   * Enviar email genérico
+   * Envía un email usando SendGrid con contenido HTML y texto plano
+   *
+   * @param {string} to - Dirección email del destinatario
+   * @param {string} subject - Asunto del email
+   * @param {string} htmlContent - Contenido HTML del email
+   * @param {string} textContent - Contenido de texto plano (opcional)
+   * @returns {Promise<Object>} Promesa que resuelve al resultado de SendGrid
+   */
   async sendEmail(to, subject, htmlContent, textContent = null) {
     try {
       const msg = {
@@ -29,18 +64,42 @@ class EmailService {
     }
   }
 
+  /**
+   * Eliminar etiquetas HTML de un string
+   * Convierte contenido HTML a texto plano
+   *
+   * @param {string} html - Contenido HTML
+   * @returns {string} Texto plano sin etiquetas HTML
+   */
   stripHtml(html) {
     return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
   }
 
   // Plantillas de email
 
+  /**
+   * Enviar email de bienvenida
+   * Envía un email de bienvenida a un nuevo usuario
+   *
+   * @param {string} userEmail - Email del usuario
+   * @param {string} userName - Nombre del usuario
+   * @returns {Promise<Object>} Promesa que resuelve al resultado del envío
+   */
   async sendWelcomeEmail(userEmail, userName) {
     const subject = '🎉 Bienvenido al Sistema de Gestión de Horarios';
     const html = this.getWelcomeTemplate(userName);
     return this.sendEmail(userEmail, subject, html);
   }
 
+  /**
+   * Enviar email de restablecimiento de contraseña
+   * Envía un email con enlace para restablecer la contraseña
+   *
+   * @param {string} userEmail - Email del usuario
+   * @param {string} userName - Nombre del usuario
+   * @param {string} resetToken - Token de restablecimiento
+   * @returns {Promise<Object>} Promesa que resuelve al resultado del envío
+   */
   async sendPasswordResetEmail(userEmail, userName, resetToken) {
     const subject = '🔒 Restablecimiento de Contraseña';
     const resetUrl = `${this.frontendUrl}/reset-password?token=${resetToken}`;
@@ -48,24 +107,60 @@ class EmailService {
     return this.sendEmail(userEmail, subject, html);
   }
 
+  /**
+   * Enviar notificación de cambio de horario
+   * Envía un email notificando un cambio en el horario del empleado
+   *
+   * @param {string} userEmail - Email del usuario
+   * @param {string} userName - Nombre del usuario
+   * @param {Object} changeDetails - Detalles del cambio (type, date, oldSchedule, newSchedule, reason)
+   * @returns {Promise<Object>} Promesa que resuelve al resultado del envío
+   */
   async sendScheduleChangeNotification(userEmail, userName, changeDetails) {
     const subject = '📅 Notificación de Cambio de Horario';
     const html = this.getScheduleChangeTemplate(userName, changeDetails);
     return this.sendEmail(userEmail, subject, html);
   }
 
+  /**
+   * Enviar notificación de aprobación de empleado
+   * Envía un email notificando que la solicitud de empleo fue aprobada
+   *
+   * @param {string} userEmail - Email del usuario
+   * @param {string} userName - Nombre del usuario
+   * @param {string} approvedBy - Nombre del administrador que aprobó
+   * @returns {Promise<Object>} Promesa que resuelve al resultado del envío
+   */
   async sendEmployeeApprovalNotification(userEmail, userName, approvedBy) {
     const subject = '✅ Solicitud de Empleado Aprobada';
     const html = this.getEmployeeApprovalTemplate(userName, approvedBy);
     return this.sendEmail(userEmail, subject, html);
   }
 
+  /**
+   * Enviar notificación de rechazo de empleado
+   * Envía un email notificando que la solicitud de empleo fue rechazada
+   *
+   * @param {string} userEmail - Email del usuario
+   * @param {string} userName - Nombre del usuario
+   * @param {string} rejectionReason - Motivo del rechazo
+   * @returns {Promise<Object>} Promesa que resuelve al resultado del envío
+   */
   async sendEmployeeRejectionNotification(userEmail, userName, rejectionReason) {
     const subject = '❌ Solicitud de Empleado Rechazada';
     const html = this.getEmployeeRejectionTemplate(userName, rejectionReason);
     return this.sendEmail(userEmail, subject, html);
   }
 
+  /**
+   * Enviar email de horario asignado
+   * Envía un email notificando que se asignó un nuevo horario
+   *
+   * @param {string} userEmail - Email del usuario
+   * @param {string} userName - Nombre del usuario
+   * @param {Object} scheduleDetails - Detalles del horario (shift, schedule, startDate, endDate, department)
+   * @returns {Promise<Object>} Promesa que resuelve al resultado del envío
+   */
   async sendScheduleAssignedEmail(userEmail, userName, scheduleDetails) {
     const subject = '📋 Nuevo Horario Asignado';
     const html = this.getScheduleAssignedTemplate(userName, scheduleDetails);
@@ -74,6 +169,13 @@ class EmailService {
 
   // Métodos de plantillas
 
+  /**
+   * Generar plantilla HTML de bienvenida
+   * Retorna el HTML del email de bienvenida
+   *
+   * @param {string} userName - Nombre del usuario
+   * @returns {string} HTML del email de bienvenida
+   */
   getWelcomeTemplate(userName) {
     return `
       <!DOCTYPE html>
@@ -118,6 +220,14 @@ class EmailService {
     `;
   }
 
+  /**
+   * Generar plantilla HTML de restablecimiento de contraseña
+   * Retorna el HTML del email de restablecimiento de contraseña
+   *
+   * @param {string} userName - Nombre del usuario
+   * @param {string} resetUrl - URL de restablecimiento de contraseña
+   * @returns {string} HTML del email de restablecimiento
+   */
   getPasswordResetTemplate(userName, resetUrl) {
     return `
       <!DOCTYPE html>
@@ -166,6 +276,14 @@ class EmailService {
     `;
   }
 
+  /**
+   * Generar plantilla HTML de cambio de horario
+   * Retorna el HTML del email de notificación de cambio de horario
+   *
+   * @param {string} userName - Nombre del usuario
+   * @param {Object} changeDetails - Detalles del cambio (type, date, oldSchedule, newSchedule, reason)
+   * @returns {string} HTML del email de cambio de horario
+   */
   getScheduleChangeTemplate(userName, changeDetails) {
     return `
       <!DOCTYPE html>
@@ -226,6 +344,14 @@ class EmailService {
     `;
   }
 
+  /**
+   * Generar plantilla HTML de aprobación de empleado
+   * Retorna el HTML del email de aprobación de solicitud de empleo
+   *
+   * @param {string} userName - Nombre del usuario
+   * @param {string} approvedBy - Nombre del administrador que aprobó
+   * @returns {string} HTML del email de aprobación
+   */
   getEmployeeApprovalTemplate(userName, approvedBy) {
     return `
       <!DOCTYPE html>
@@ -270,6 +396,14 @@ class EmailService {
     `;
   }
 
+  /**
+   * Generar plantilla HTML de rechazo de empleado
+   * Retorna el HTML del email de rechazo de solicitud de empleo
+   *
+   * @param {string} userName - Nombre del usuario
+   * @param {string} rejectionReason - Motivo del rechazo
+   * @returns {string} HTML del email de rechazo
+   */
   getEmployeeRejectionTemplate(userName, rejectionReason) {
     return `
       <!DOCTYPE html>
@@ -319,6 +453,14 @@ class EmailService {
     `;
   }
 
+  /**
+   * Generar plantilla HTML de horario asignado
+   * Retorna el HTML del email de nuevo horario asignado
+   *
+   * @param {string} userName - Nombre del usuario
+   * @param {Object} scheduleDetails - Detalles del horario (shift, schedule, startDate, endDate, department)
+   * @returns {string} HTML del email de horario asignado
+   */
   getScheduleAssignedTemplate(userName, scheduleDetails) {
     return `
       <!DOCTYPE html>

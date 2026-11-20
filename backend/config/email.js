@@ -1,7 +1,23 @@
+/**
+ * CONFIGURACIÓN DE EMAIL
+ * Archivo: backend/config/email.js
+ * Descripción: Módulo que centraliza el envío de emails del sistema.
+ *              Utiliza SendGrid como servicio principal y Gmail SMTP como fallback.
+ *              Maneja diferentes tipos de notificaciones: recuperación de contraseña,
+ *              bienvenida, aprobación/rechazo de empleados, cambios de horarios.
+ */
+
 const emailService = require('../services/emailService');
 const nodemailer = require('nodemailer');
 
-// Configurar Gmail SMTP como fallback
+/**
+ * Configurar Gmail SMTP como fallback
+ * @returns {object} Transporter de nodemailer configurado para Gmail SMTP
+ *
+ * Esta función crea un transporter de nodemailer usando Gmail SMTP.
+ * Se usa como alternativa cuando SendGrid falla o no está configurado.
+ * Requiere variables de entorno: EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS
+ */
 const createGmailTransporter = () => {
   return nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
@@ -14,10 +30,27 @@ const createGmailTransporter = () => {
   });
 };
 
+/**
+ * Enviar email de solicitud de recuperación de contraseña al administrador
+ * @param {string} adminEmail - Email del administrador que debe aprobar la solicitud
+ * @param {string} employeeEmail - Email del empleado que solicitó el restablecimiento
+ * @param {string} resetToken - Token único para identificar la solicitud
+ * @returns {boolean} true si el email se envió correctamente, false en caso contrario
+ *
+ * Esta función envía un email al administrador con:
+ * - Detalles de la solicitud (email del empleado, fecha, token)
+ * - Botones para aprobar o rechazar la solicitud
+ * - Información sobre qué sucede al aprobar
+ * - Advertencias de seguridad
+ *
+ * Intenta primero con SendGrid, si falla usa Gmail SMTP como fallback
+ */
 const sendPasswordResetEmail = async (adminEmail, employeeEmail, resetToken) => {
+  // Generar URLs para aprobar y rechazar la solicitud
   const approveUrl = `${process.env.BACKEND_URL || 'http://localhost:3001'}/api/auth/approve-reset/${resetToken}?admin_email=${encodeURIComponent(adminEmail)}`;
   const rejectUrl = `${process.env.BACKEND_URL || 'http://localhost:3001'}/api/auth/reject-reset/${resetToken}?admin_email=${encodeURIComponent(adminEmail)}`;
-  
+
+  // Plantilla HTML del email con diseño profesional
   const html = `
     <!DOCTYPE html>
     <html>
@@ -99,13 +132,14 @@ const sendPasswordResetEmail = async (adminEmail, employeeEmail, resetToken) => 
   `;
 
   try {
+    // Intentar enviar usando SendGrid (servicio principal)
     await emailService.sendEmail(adminEmail, '🔐 Solicitud de Recuperación de Contraseña - Sistema de Horarios', html);
     console.log('Email de recuperación enviado al administrador:', adminEmail);
     return true;
   } catch (error) {
     console.error('Error con SendGrid, intentando con Gmail SMTP:', error.message);
-    
-    // Fallback a Gmail SMTP
+
+    // Fallback a Gmail SMTP si SendGrid falla
     try {
       const transporter = createGmailTransporter();
       const gmailMsg = {
@@ -114,7 +148,7 @@ const sendPasswordResetEmail = async (adminEmail, employeeEmail, resetToken) => 
         subject: '🔐 Solicitud de Recuperación de Contraseña - Sistema de Horarios',
         html: html
       };
-      
+
       await transporter.sendMail(gmailMsg);
       console.log('Email de recuperación enviado via Gmail SMTP:', adminEmail);
       return true;
@@ -126,6 +160,15 @@ const sendPasswordResetEmail = async (adminEmail, employeeEmail, resetToken) => 
   }
 };
 
+/**
+ * Enviar email de aprobación de solicitud de recuperación al empleado
+ * @param {string} employeeEmail - Email del empleado que solicitó el restablecimiento
+ * @param {string} resetToken - Token válido para restablecer la contraseña
+ * @returns {boolean} true si el email se envió correctamente, false en caso contrario
+ *
+ * Esta función notifica al empleado que su solicitud fue aprobada y le envía
+ * el enlace para restablecer su contraseña.
+ */
 const sendPasswordResetApproval = async (employeeEmail, resetToken) => {
   try {
     await emailService.sendPasswordResetEmail(employeeEmail, 'Empleado', resetToken);
@@ -133,19 +176,19 @@ const sendPasswordResetApproval = async (employeeEmail, resetToken) => {
     return true;
   } catch (error) {
     console.error('Error con SendGrid, intentando con Gmail SMTP:', error.message);
-    
+
     // Fallback a Gmail SMTP
     try {
       const transporter = createGmailTransporter();
       const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}&approved=true`;
-      
+
       const gmailMsg = {
         to: employeeEmail,
         from: process.env.EMAIL_USER,
         subject: '✅ Solicitud Aprobada - Restablece tu Contraseña',
         html: emailService.getPasswordResetTemplate('Empleado', resetLink)
       };
-      
+
       await transporter.sendMail(gmailMsg);
       console.log('Email de aprobación enviado via Gmail SMTP:', employeeEmail);
       return true;
@@ -157,7 +200,16 @@ const sendPasswordResetApproval = async (employeeEmail, resetToken) => {
   }
 };
 
+/**
+ * Enviar email de confirmación de restablecimiento de contraseña
+ * @param {string} employeeEmail - Email del empleado que restableció su contraseña
+ * @returns {boolean} true si el email se envió correctamente, false en caso contrario
+ *
+ * Esta función confirma al empleado que su contraseña fue actualizada exitosamente
+ * y le proporciona instrucciones para iniciar sesión.
+ */
 const sendPasswordResetConfirmation = async (employeeEmail) => {
+  // Plantilla HTML de confirmación con diseño profesional
   const html = `
     <!DOCTYPE html>
     <html>
@@ -215,7 +267,7 @@ const sendPasswordResetConfirmation = async (employeeEmail) => {
     return true;
   } catch (error) {
     console.error('Error con SendGrid, intentando con Gmail SMTP:', error.message);
-    
+
     // Fallback a Gmail SMTP
     try {
       const transporter = createGmailTransporter();
@@ -225,7 +277,7 @@ const sendPasswordResetConfirmation = async (employeeEmail) => {
         subject: '✅ Contraseña Restablecida Exitosamente - Sistema de Horarios',
         html: html
       };
-      
+
       await transporter.sendMail(gmailMsg);
       console.log('Email de confirmación enviado via Gmail SMTP:', employeeEmail);
       return true;
@@ -237,7 +289,14 @@ const sendPasswordResetConfirmation = async (employeeEmail) => {
   }
 };
 
-// Nuevas funciones para notificaciones del sistema
+// ========== FUNCIONES DE NOTIFICACIONES DEL SISTEMA ==========
+
+/**
+ * Enviar email de bienvenida a nuevo usuario
+ * @param {string} userEmail - Email del nuevo usuario
+ * @param {string} userName - Nombre del usuario
+ * @returns {boolean} true si el email se envió correctamente, false en caso contrario
+ */
 const sendWelcomeEmail = async (userEmail, userName) => {
   try {
     await emailService.sendWelcomeEmail(userEmail, userName);
@@ -249,6 +308,13 @@ const sendWelcomeEmail = async (userEmail, userName) => {
   }
 };
 
+/**
+ * Enviar notificación de aprobación de empleado
+ * @param {string} userEmail - Email del empleado aprobado
+ * @param {string} userName - Nombre del empleado
+ * @param {string} approvedBy - Nombre del administrador que aprobó
+ * @returns {boolean} true si el email se envió correctamente, false en caso contrario
+ */
 const sendEmployeeApprovalNotification = async (userEmail, userName, approvedBy) => {
   try {
     await emailService.sendEmployeeApprovalNotification(userEmail, userName, approvedBy);
@@ -260,6 +326,13 @@ const sendEmployeeApprovalNotification = async (userEmail, userName, approvedBy)
   }
 };
 
+/**
+ * Enviar notificación de rechazo de empleado
+ * @param {string} userEmail - Email del empleado rechazado
+ * @param {string} userName - Nombre del empleado
+ * @param {string} rejectionReason - Razón del rechazo
+ * @returns {boolean} true si el email se envió correctamente, false en caso contrario
+ */
 const sendEmployeeRejectionNotification = async (userEmail, userName, rejectionReason) => {
   try {
     await emailService.sendEmployeeRejectionNotification(userEmail, userName, rejectionReason);
@@ -271,6 +344,13 @@ const sendEmployeeRejectionNotification = async (userEmail, userName, rejectionR
   }
 };
 
+/**
+ * Enviar notificación de cambio de horario
+ * @param {string} userEmail - Email del empleado
+ * @param {string} userName - Nombre del empleado
+ * @param {object} changeDetails - Detalles del cambio de horario
+ * @returns {boolean} true si el email se envió correctamente, false en caso contrario
+ */
 const sendScheduleChangeNotification = async (userEmail, userName, changeDetails) => {
   try {
     await emailService.sendScheduleChangeNotification(userEmail, userName, changeDetails);
@@ -282,6 +362,13 @@ const sendScheduleChangeNotification = async (userEmail, userName, changeDetails
   }
 };
 
+/**
+ * Enviar email de horario asignado
+ * @param {string} userEmail - Email del empleado
+ * @param {string} userName - Nombre del empleado
+ * @param {object} scheduleDetails - Detalles del horario asignado
+ * @returns {boolean} true si el email se envió correctamente, false en caso contrario
+ */
 const sendScheduleAssignedEmail = async (userEmail, userName, scheduleDetails) => {
   try {
     await emailService.sendScheduleAssignedEmail(userEmail, userName, scheduleDetails);
@@ -293,13 +380,17 @@ const sendScheduleAssignedEmail = async (userEmail, userName, scheduleDetails) =
   }
 };
 
+/**
+ * Exportar todas las funciones de email
+ * Este módulo exporta funciones para enviar diferentes tipos de notificaciones por email
+ */
 module.exports = {
-  sendPasswordResetEmail,
-  sendPasswordResetApproval,
-  sendPasswordResetConfirmation,
-  sendWelcomeEmail,
-  sendEmployeeApprovalNotification,
-  sendEmployeeRejectionNotification,
-  sendScheduleChangeNotification,
-  sendScheduleAssignedEmail
+  sendPasswordResetEmail,              // Enviar solicitud de recuperación al admin
+  sendPasswordResetApproval,           // Enviar aprobación al empleado
+  sendPasswordResetConfirmation,       // Enviar confirmación de restablecimiento
+  sendWelcomeEmail,                    // Enviar email de bienvenida
+  sendEmployeeApprovalNotification,    // Notificar aprobación de empleado
+  sendEmployeeRejectionNotification,   // Notificar rechazo de empleado
+  sendScheduleChangeNotification,      // Notificar cambio de horario
+  sendScheduleAssignedEmail           // Notificar horario asignado
 };

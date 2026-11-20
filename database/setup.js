@@ -1,7 +1,7 @@
-require('dotenv').config();
-const db = require('./models');
+require('dotenv').config(); // Cargar variables de entorno
+const db = require('./models'); // Importar el modelo
 
-async function setupDatabase() {
+async function setupDatabase() { // Función para configurar la base de datos
   try {
     console.log('🚀 Iniciando configuración de la base de datos...');
     

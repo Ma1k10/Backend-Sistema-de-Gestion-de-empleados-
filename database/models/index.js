@@ -1,47 +1,47 @@
-const { Sequelize } = require('sequelize');
-const config = require('../config/config');
+const { Sequelize } = require('sequelize'); // Importar Sequelize
+const config = require('../config/config'); // Importar configuración
 
-const env = process.env.NODE_ENV || 'development';
-const dbConfig = config[env];
+const env = process.env.NODE_ENV || 'development'; // Obtener ambiente
+const dbConfig = config[env]; // Obtener configuración de la base de datos
 
 // Crear instancia de Sequelize
-const sequelize = new Sequelize(
-  dbConfig.database,
-  dbConfig.username,
-  dbConfig.password,
+const sequelize = new Sequelize( 
+  dbConfig.database, // Nombre de la base de datos
+  dbConfig.username, // Usuario
+  dbConfig.password, // Contraseña
   {
-    host: dbConfig.host,
-    dialect: dbConfig.dialect,
-    logging: dbConfig.logging,
-    pool: dbConfig.pool,
+    host: dbConfig.host, // Host
+    dialect: dbConfig.dialect, // Dialecto
+    logging: dbConfig.logging, // Logging
+    pool: dbConfig.pool, // Pool
     define: {
-      underscored: true,
-      freezeTableName: true,
-      charset: 'utf8mb4',
-      collate: 'utf8mb4_unicode_ci'
+      underscored: true, // Usar guiones bajos en los nombres de las tablas
+      freezeTableName: true, // No pluralizar los nombres de las tablas
+      charset: 'utf8mb4', // Charset
+      collate: 'utf8mb4_unicode_ci' // Collate
     }
   }
 );
 
 // Importar modelos
-const User = require('./User')(sequelize);
-const Employee = require('./Employee')(sequelize);
-const Schedule = require('./Schedule')(sequelize);
-const ScheduleRequest = require('./ScheduleRequest')(sequelize);
+const User = require('./User')(sequelize); // Importar modelo User
+const Employee = require('./Employee')(sequelize); // Importar modelo Employee
+const Schedule = require('./Schedule')(sequelize); // Importar modelo Schedule
+const ScheduleRequest = require('./ScheduleRequest')(sequelize); // Importar modelo ScheduleRequest
 
 // Establecer asociaciones
 const setupAssociations = () => {
   // User associations
-  User.associate({ Employee });
+  User.associate({ Employee }); // Asociar User con Employee
 
   // Employee associations
-  Employee.associate({ User, Schedule, ScheduleRequest });
+  Employee.associate({ User, Schedule, ScheduleRequest }); // Asociar Employee con User, Schedule y ScheduleRequest
 
   // Schedule associations
-  Schedule.associate({ Employee });
+  Schedule.associate({ Employee }); // Asociar Schedule con Employee
 
   // ScheduleRequest associations
-  ScheduleRequest.associate({ Employee, User });
+  ScheduleRequest.associate({ Employee, User }); // Asociar ScheduleRequest con Employee y User
 };
 
 // Configurar asociaciones
@@ -58,7 +58,7 @@ const db = {
 };
 
 // Sincronización de la base de datos
-const syncDatabase = async (force = false) => {
+const syncDatabase = async (force = false) => { // Sincronizar la base de datos
   try {
     await sequelize.authenticate();
     console.log('✅ Conexión a la base de datos establecida correctamente.');
@@ -83,7 +83,7 @@ const syncDatabase = async (force = false) => {
 };
 
 // Crear usuario administrador por defecto
-const createDefaultAdmin = async () => {
+const createDefaultAdmin = async () => { // Crear usuario administrador por defecto
   try {
     const adminExists = await db.User.findOne({
       where: { correo: 'admin@sistema.com' }
@@ -111,7 +111,7 @@ const createDefaultAdmin = async () => {
 };
 
 // Métodos de utilidad
-db.syncDatabase = syncDatabase;
-db.createDefaultAdmin = createDefaultAdmin;
+db.syncDatabase = syncDatabase; // Sincronizar la base de datos
+db.createDefaultAdmin = createDefaultAdmin; // Crear usuario administrador por defecto
 
-module.exports = db;
+module.exports = db; // Exportar el objeto de la base de datos

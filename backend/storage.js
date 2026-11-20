@@ -1,12 +1,12 @@
 // Sistema de almacenamiento en memoria para el backend
 class MemoryStorage {
   constructor() {
-    this.users = [];
-    this.employees = [];
-    this.schedules = [];
-    this.scheduleRequests = [];
-    this.employeeRequests = [];
-    this.notifications = [];
+    this.users = []; // Almacenar usuarios
+    this.employees = []; // Almacenar empleados
+    this.schedules = []; // Almacenar horarios
+    this.scheduleRequests = []; // Almacenar solicitudes de horarios
+    this.employeeRequests = []; // Almacenar solicitudes de empleados
+    this.notifications = []; // Almacenar notificaciones
     this.nextId = 1;
     
     // Inicializar datos por defecto
@@ -26,12 +26,12 @@ class MemoryStorage {
     this.users.push(adminUser);
   }
 
-  // Métodos para usuarios
+  // Métodos para usuarios 
   createUser(userData) {
-    const user = {
-      id: this.nextId++,
+    const user = {  // Crear usuario
+      id: this.nextId++, // Asignar ID incremental
       ...userData,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString() // Fecha de creación
     };
     this.users.push(user);
     return user;
@@ -56,21 +56,21 @@ class MemoryStorage {
 
   // Métodos para empleados
   createEmployee(employeeData) {
-    const employee = {
-      id: this.nextId++,
+    const employee = { // Crear empleado
+      id: this.nextId++, // Asignar ID incremental
       ...employeeData,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString() // Fecha de creación
     };
     this.employees.push(employee);
     return employee;
   }
 
   getEmployees() {
-    return this.employees.filter(emp => emp.status !== 'deleted');
+    return this.employees.filter(emp => emp.status !== 'deleted'); // Filtrar empleados eliminados
   }
 
   getEmployeeById(id) {
-    return this.employees.find(emp => emp.id === id && emp.status !== 'deleted');
+    return this.employees.find(emp => emp.id === id && emp.status !== 'deleted'); // Filtrar empleados eliminados
   }
 
   updateEmployee(id, employeeData) {
@@ -93,22 +93,22 @@ class MemoryStorage {
 
   // Métodos para solicitudes de empleado
   createEmployeeRequest(requestData) {
-    const request = {
-      id: this.nextId++,
+    const request = { // Crear solicitud
+      id: this.nextId++, // Asignar ID incremental
       ...requestData,
-      status: 'pending',
-      created_at: new Date().toISOString()
+      status: 'pending', // Estado inicial
+      created_at: new Date().toISOString() // Fecha de creación
     };
     this.employeeRequests.push(request);
     return request;
   }
 
   getEmployeeRequests() {
-    return this.employeeRequests.filter(req => req.status === 'pending');
+    return this.employeeRequests.filter(req => req.status === 'pending'); // Filtrar solicitudes pendientes
   }
 
   getEmployeeRequestById(id) {
-    return this.employeeRequests.find(req => req.id === id);
+    return this.employeeRequests.find(req => req.id === id); // Buscar solicitud por ID
   }
 
   updateEmployeeRequest(id, requestData) {
@@ -122,21 +122,21 @@ class MemoryStorage {
 
   // Métodos para horarios
   createSchedule(scheduleData) {
-    const schedule = {
-      id: this.nextId++,
+    const schedule = { // Crear horario
+      id: this.nextId++, // Asignar ID incremental
       ...scheduleData,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString() // Fecha de creación
     };
     this.schedules.push(schedule);
     return schedule;
   }
 
   getSchedules() {
-    return this.schedules;
+    return this.schedules; // Obtener todos los horarios
   }
 
   getScheduleById(id) {
-    return this.schedules.find(schedule => schedule.id === id);
+    return this.schedules.find(schedule => schedule.id === id); // Buscar horario por ID
   }
 
   updateSchedule(id, scheduleData) {
@@ -159,22 +159,22 @@ class MemoryStorage {
 
   // Métodos para solicitudes de cambio de horario
   createScheduleRequest(requestData) {
-    const request = {
-      id: this.nextId++,
+    const request = { // Crear solicitud
+      id: this.nextId++, // Asignar ID incremental
       ...requestData,
-      status: 'pending',
-      created_at: new Date().toISOString()
+      status: 'pending', // Estado inicial
+      created_at: new Date().toISOString() // Fecha de creación
     };
     this.scheduleRequests.push(request);
     return request;
   }
 
   getScheduleRequests() {
-    return this.scheduleRequests;
+    return this.scheduleRequests; // Obtener todas las solicitudes
   }
 
   getMyScheduleRequests(userId) {
-    return this.scheduleRequests.filter(req => req.user_id === userId);
+    return this.scheduleRequests.filter(req => req.user_id === userId); // Filtrar solicitudes por usuario
   }
 
   updateScheduleRequest(id, requestData) {
@@ -188,48 +188,48 @@ class MemoryStorage {
 
   // Métodos para notificaciones
   createNotification(notificationData) {
-    const notification = {
-      id: this.nextId++,
+    const notification = { // Crear notificación
+      id: this.nextId++, // Asignar ID incremental
       ...notificationData,
-      read: false,
-      created_at: new Date().toISOString()
+      read: false, // Estado inicial
+      created_at: new Date().toISOString() // Fecha de creación
     };
-    this.notifications.push(notification);
+    this.notifications.push(notification); 
     return notification;
   }
 
   getNotifications(userId) {
-    return this.notifications.filter(notif => notif.user_id === userId);
+    return this.notifications.filter(notif => notif.user_id === userId); // Filtrar notificaciones por usuario
   }
 
   markNotificationAsRead(id) {
-    const notification = this.notifications.find(notif => notif.id === id);
+    const notification = this.notifications.find(notif => notif.id === id); // Buscar notificación por ID
     if (notification) {
-      notification.read = true;
+      notification.read = true; // Marcar como leída
       return notification;
     }
     return null;
   }
 
   markAllNotificationsAsRead(userId) {
-    const userNotifications = this.notifications.filter(notif => notif.user_id === userId);
+    const userNotifications = this.notifications.filter(notif => notif.user_id === userId); // Filtrar notificaciones por usuario
     userNotifications.forEach(notif => {
-      notif.read = true;
+      notif.read = true; // Marcar como leída
     });
-    return userNotifications.length;
+    return userNotifications.length; // Retornar cantidad de notificaciones marcadas
   }
 
   deleteNotification(id) {
-    const index = this.notifications.findIndex(notif => notif.id === id);
+    const index = this.notifications.findIndex(notif => notif.id === id); // Buscar notificación por ID
     if (index !== -1) {
-      this.notifications.splice(index, 1);
+      this.notifications.splice(index, 1); // Eliminar notificación
       return true;
     }
     return false;
   }
 
   getUnreadNotificationsCount(userId) {
-    return this.notifications.filter(notif => notif.user_id === userId && !notif.read).length;
+    return this.notifications.filter(notif => notif.user_id === userId && !notif.read).length; // Contar notificaciones no leídas
   }
 }
 

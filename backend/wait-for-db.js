@@ -1,31 +1,31 @@
-const mysql = require('mysql2/promise');
-const { sequelize } = require('./models');
+const mysql = require('mysql2/promise'); // Importar el módulo mysql2/promise para crear conexiones
+const { sequelize } = require('./models'); // Importar el objeto sequelize desde el archivo models
 
-const waitForDatabase = async (maxRetries = 1, delay = 5000) => {
+const waitForDatabase = async (maxRetries = 1, delay = 5000) => { // Función asincrónica para esperar a que la base de datos esté disponible 
   console.log('🔄 Esperando a que la base de datos esté disponible...');
   
   // Debug: Mostrar todas las variables de entorno relevantes
-  console.log('🔍 Variables de entorno disponibles:');
-  console.log('MYSQL_URL:', process.env.MYSQL_URL ? '***CONFIGURADO***' : 'NO DEFINIDO');
-  console.log('MYSQL_PUBLIC_URL:', process.env.MYSQL_PUBLIC_URL ? '***CONFIGURADO***' : 'NO DEFINIDO');
-  console.log('DB_HOST:', process.env.DB_HOST || 'NO DEFINIDO');
-  console.log('DB_PORT:', process.env.DB_PORT || 'NO DEFINIDO');
-  console.log('DB_NAME:', process.env.DB_NAME || 'NO DEFINIDO');
-  console.log('DB_USER:', process.env.DB_USER || 'NO DEFINIDO');
-  console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '***CONFIGURADO***' : 'NO DEFINIDO');
-  console.log('RAILWAY_PRIVATE_MYSQL_HOST:', process.env.RAILWAY_PRIVATE_MYSQL_HOST || 'NO DEFINIDO');
-  console.log('RAILWAY_PRIVATE_MYSQL_PORT:', process.env.RAILWAY_PRIVATE_MYSQL_PORT || 'NO DEFINIDO');
-  console.log('RAILWAY_PRIVATE_MYSQL_DATABASE:', process.env.RAILWAY_PRIVATE_MYSQL_DATABASE || 'NO DEFINIDO');
-  console.log('RAILWAY_PRIVATE_MYSQL_USER:', process.env.RAILWAY_PRIVATE_MYSQL_USER || 'NO DEFINIDO');
-  console.log('RAILWAY_PRIVATE_MYSQL_PASSWORD:', process.env.RAILWAY_PRIVATE_MYSQL_PASSWORD ? '***CONFIGURADO***' : 'NO DEFINIDO');
-  console.log('MYSQLUSER:', process.env.MYSQLUSER || 'NO DEFINIDO');
-  console.log('MYSQLPASSWORD:', process.env.MYSQLPASSWORD ? '***CONFIGURADO***' : 'NO DEFINIDO');
-  console.log('MYSQL_ROOT_PASSWORD:', process.env.MYSQL_ROOT_PASSWORD ? '***CONFIGURADO***' : 'NO DEFINIDO');
-  console.log('MYSQLHOST:', process.env.MYSQLHOST || 'NO DEFINIDO');
-  console.log('MYSQLPORT:', process.env.MYSQLPORT || 'NO DEFINIDO');
-  console.log('MYSQLDATABASE:', process.env.MYSQLDATABASE || 'NO DEFINIDO');
-  console.log('MYSQL_DATABASE:', process.env.MYSQL_DATABASE || 'NO DEFINIDO');
-  console.log('RAILWAY_PRIVATE_DOMAIN:', process.env.RAILWAY_PRIVATE_DOMAIN || 'NO DEFINIDO');
+  console.log('🔍 Variables de entorno disponibles:'); 
+  console.log('MYSQL_URL:', process.env.MYSQL_URL ? '***CONFIGURADO***' : 'NO DEFINIDO'); // URL de la base de datos
+  console.log('MYSQL_PUBLIC_URL:', process.env.MYSQL_PUBLIC_URL ? '***CONFIGURADO***' : 'NO DEFINIDO'); // URL pública de la base de datos
+  console.log('DB_HOST:', process.env.DB_HOST || 'NO DEFINIDO'); // host de la base de datos
+  console.log('DB_PORT:', process.env.DB_PORT || 'NO DEFINIDO'); // puerto de la base de datos
+  console.log('DB_NAME:', process.env.DB_NAME || 'NO DEFINIDO'); // nombre de la base de datos
+  console.log('DB_USER:', process.env.DB_USER || 'NO DEFINIDO'); // usuario de la base de datos
+  console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '***CONFIGURADO***' : 'NO DEFINIDO'); // contraseña de la base de datos
+  console.log('RAILWAY_PRIVATE_MYSQL_HOST:', process.env.RAILWAY_PRIVATE_MYSQL_HOST || 'NO DEFINIDO'); // host de la base de datos
+  console.log('RAILWAY_PRIVATE_MYSQL_PORT:', process.env.RAILWAY_PRIVATE_MYSQL_PORT || 'NO DEFINIDO'); // puerto de la base de datos
+  console.log('RAILWAY_PRIVATE_MYSQL_DATABASE:', process.env.RAILWAY_PRIVATE_MYSQL_DATABASE || 'NO DEFINIDO'); // nombre de la base de datos
+  console.log('RAILWAY_PRIVATE_MYSQL_USER:', process.env.RAILWAY_PRIVATE_MYSQL_USER || 'NO DEFINIDO'); // usuario de la base de datos
+  console.log('RAILWAY_PRIVATE_MYSQL_PASSWORD:', process.env.RAILWAY_PRIVATE_MYSQL_PASSWORD ? '***CONFIGURADO***' : 'NO DEFINIDO'); // contraseña de la base de datos
+  console.log('MYSQLUSER:', process.env.MYSQLUSER || 'NO DEFINIDO'); // usuario de la base de datos
+  console.log('MYSQLPASSWORD:', process.env.MYSQLPASSWORD ? '***CONFIGURADO***' : 'NO DEFINIDO'); // contraseña de la base de datos
+  console.log('MYSQL_ROOT_PASSWORD:', process.env.MYSQL_ROOT_PASSWORD ? '***CONFIGURADO***' : 'NO DEFINIDO'); // contraseña de la base de datos
+  console.log('MYSQLHOST:', process.env.MYSQLHOST || 'NO DEFINIDO'); // host de la base de datos
+  console.log('MYSQLPORT:', process.env.MYSQLPORT || 'NO DEFINIDO'); // puerto de la base de datos
+  console.log('MYSQLDATABASE:', process.env.MYSQLDATABASE || 'NO DEFINIDO'); // nombre de la base de datos
+  console.log('MYSQL_DATABASE:', process.env.MYSQL_DATABASE || 'NO DEFINIDO'); // nombre de la base de datos
+  console.log('RAILWAY_PRIVATE_DOMAIN:', process.env.RAILWAY_PRIVATE_DOMAIN || 'NO DEFINIDO'); // dominio privado de Railway
   
   // Variables para conexión (usar MYSQL_URL o variables individuales)
   let dbHost, dbPort, dbName, dbUser, dbPassword;
@@ -34,7 +34,7 @@ const waitForDatabase = async (maxRetries = 1, delay = 5000) => {
   if (process.env.MYSQL_URL || process.env.MYSQL_PUBLIC_URL) {
     const mysqlUrl = process.env.MYSQL_URL || process.env.MYSQL_PUBLIC_URL;
     console.log('🔗 Usando MYSQL_URL para conexión');
-    console.log('MYSQL_URL:', mysqlUrl.replace(/\/\/.*@/, '//***:***@')); // Ocultar credenciales
+    console.log('MYSQL_URL:', mysqlUrl.replace(/\/\/.*@/, '//***:***@')); 
     console.log('✅ Configuración de base de datos válida via MYSQL_URL');
     
     // Parsear MYSQL_URL para obtener componentes
@@ -68,8 +68,8 @@ const waitForDatabase = async (maxRetries = 1, delay = 5000) => {
       dbUser = parsed.username;
       dbPassword = parsed.password;
       
-      console.log('✅ Componentes parseados:');
-      console.log('  Host:', dbHost);
+      console.log('✅ Componentes parseados:'); 
+      console.log('  Host:', dbHost); 
       console.log('  Port:', dbPort);
       console.log('  Database:', dbName);
       console.log('  User:', dbUser);
@@ -82,11 +82,11 @@ const waitForDatabase = async (maxRetries = 1, delay = 5000) => {
       console.log('  Código error:', error.code);
       console.log('⚠️ Usando variables individuales como fallback...');
       // No lanzar error, usar variables individuales como fallback
-      dbHost = process.env.DB_HOST || process.env.RAILWAY_PRIVATE_MYSQL_HOST || process.env.MYSQLHOST || process.env.RAILWAY_PRIVATE_DOMAIN;
-      dbPort = process.env.DB_PORT || process.env.RAILWAY_PRIVATE_MYSQL_PORT || process.env.MYSQLPORT || 3306;
-      dbName = process.env.DB_NAME || process.env.RAILWAY_PRIVATE_MYSQL_DATABASE || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE;
-      dbUser = process.env.DB_USER || process.env.RAILWAY_PRIVATE_MYSQL_USER || process.env.MYSQLUSER;
-      dbPassword = process.env.DB_PASSWORD || process.env.RAILWAY_PRIVATE_MYSQL_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_ROOT_PASSWORD;
+      dbHost = process.env.DB_HOST || process.env.RAILWAY_PRIVATE_MYSQL_HOST || process.env.MYSQLHOST || process.env.RAILWAY_PRIVATE_DOMAIN; // host de la base de datos
+      dbPort = process.env.DB_PORT || process.env.RAILWAY_PRIVATE_MYSQL_PORT || process.env.MYSQLPORT || 3306; // puerto de la base de datos
+      dbName = process.env.DB_NAME || process.env.RAILWAY_PRIVATE_MYSQL_DATABASE || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE; // nombre de la base de datos
+      dbUser = process.env.DB_USER || process.env.RAILWAY_PRIVATE_MYSQL_USER || process.env.MYSQLUSER; // usuario de la base de datos
+      dbPassword = process.env.DB_PASSWORD || process.env.RAILWAY_PRIVATE_MYSQL_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_ROOT_PASSWORD; // contraseña de la base de datos
       
       console.log('🔍 Configuración de base de datos (fallback variables individuales):');
       console.log('HOST:', dbHost || 'NO DEFINIDO');
@@ -97,11 +97,11 @@ const waitForDatabase = async (maxRetries = 1, delay = 5000) => {
     }
   } else {
     // Usar variables de entorno individuales
-    dbHost = process.env.DB_HOST || process.env.RAILWAY_PRIVATE_MYSQL_HOST || process.env.MYSQLHOST || process.env.RAILWAY_PRIVATE_DOMAIN;
-    dbPort = process.env.DB_PORT || process.env.RAILWAY_PRIVATE_MYSQL_PORT || process.env.MYSQLPORT || 3306;
-    dbName = process.env.DB_NAME || process.env.RAILWAY_PRIVATE_MYSQL_DATABASE || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE;
-    dbUser = process.env.DB_USER || process.env.RAILWAY_PRIVATE_MYSQL_USER || process.env.MYSQLUSER;
-    dbPassword = process.env.DB_PASSWORD || process.env.RAILWAY_PRIVATE_MYSQL_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_ROOT_PASSWORD;
+    dbHost = process.env.DB_HOST || process.env.RAILWAY_PRIVATE_MYSQL_HOST || process.env.MYSQLHOST || process.env.RAILWAY_PRIVATE_DOMAIN; // host de la base de datos
+    dbPort = process.env.DB_PORT || process.env.RAILWAY_PRIVATE_MYSQL_PORT || process.env.MYSQLPORT || 3306; // puerto de la base de datos
+    dbName = process.env.DB_NAME || process.env.RAILWAY_PRIVATE_MYSQL_DATABASE || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE; // nombre de la base de datos
+    dbUser = process.env.DB_USER || process.env.RAILWAY_PRIVATE_MYSQL_USER || process.env.MYSQLUSER; // usuario de la base de datos
+    dbPassword = process.env.DB_PASSWORD || process.env.RAILWAY_PRIVATE_MYSQL_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_ROOT_PASSWORD; // contraseña de la base de datos
     
     console.log('🔍 Configuración de base de datos (variables individuales):');
     console.log('HOST:', dbHost || 'NO DEFINIDO');
@@ -161,15 +161,15 @@ const waitForDatabase = async (maxRetries = 1, delay = 5000) => {
           console.log('🔧 Sequelize - Forzando conexión directa con URL:', mysqlUrl.replace(/\/\/.*@/, '//***:***@'));
         } else {
           console.log('🔧 Sequelize - MYSQL_URL no está definida, usando configuración individual');
-          const dbHost = process.env.DB_HOST || process.env.RAILWAY_PRIVATE_MYSQL_HOST || process.env.MYSQLHOST || process.env.RAILWAY_PRIVATE_DOMAIN;
-          const dbPort = process.env.DB_PORT || process.env.RAILWAY_PRIVATE_MYSQL_PORT || process.env.MYSQLPORT || 3306;
-          const dbName = process.env.DB_NAME || process.env.RAILWAY_PRIVATE_MYSQL_DATABASE || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE;
-          const dbUser = process.env.DB_USER || process.env.RAILWAY_PRIVATE_MYSQL_USER || process.env.MYSQLUSER;
-          const dbPassword = process.env.DB_PASSWORD || process.env.RAILWAY_PRIVATE_MYSQL_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_ROOT_PASSWORD;
+          const dbHost = process.env.DB_HOST || process.env.RAILWAY_PRIVATE_MYSQL_HOST || process.env.MYSQLHOST || process.env.RAILWAY_PRIVATE_DOMAIN; // host de la base de datos
+          const dbPort = process.env.DB_PORT || process.env.RAILWAY_PRIVATE_MYSQL_PORT || process.env.MYSQLPORT || 3306; // puerto de la base de datos
+          const dbName = process.env.DB_NAME || process.env.RAILWAY_PRIVATE_MYSQL_DATABASE || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE; // nombre de la base de datos
+          const dbUser = process.env.DB_USER || process.env.RAILWAY_PRIVATE_MYSQL_USER || process.env.MYSQLUSER; // usuario de la base de datos
+          const dbPassword = process.env.DB_PASSWORD || process.env.RAILWAY_PRIVATE_MYSQL_PASSWORD || process.env.MYSQLPASSWORD || process.env.MYSQL_ROOT_PASSWORD; // contraseña de la base de datos
           mysqlUrl = `mysql://${dbUser}:${dbPassword}@${dbHost}:${dbPort}/${dbName}`;
         }
         
-        const sequelizeDirect = new Sequelize(mysqlUrl, {
+        const sequelizeDirect = new Sequelize(mysqlUrl, { // configurar sequelize para conectar con la base de datos
           dialect: 'mysql',
           logging: false,
           dialectOptions: {
@@ -177,7 +177,7 @@ const waitForDatabase = async (maxRetries = 1, delay = 5000) => {
             ssl: { rejectUnauthorized: false }
           }
         });
-        
+        // conectar con sequelize
         await sequelizeDirect.authenticate();
         console.log('✅ Base de datos conectada exitosamente con Sequelize directo');
         return true;

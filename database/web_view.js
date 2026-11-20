@@ -1,35 +1,35 @@
-require('dotenv').config();
-const db = require('./models');
-const express = require('express');
+require('dotenv').config(); // Cargar variables de entorno
+const db = require('./models'); // Importar el modelo
+const express = require('express'); // Importar express
 
-const app = express();
-const PORT = 3002;
+const app = express(); // Crear una instancia de express
+const PORT = 3002; // Puerto en el que se ejecutará el servidor
 
-app.use(express.static('public'));
-app.use(express.json());
+app.use(express.static('public')); // Servir archivos estáticos desde la carpeta public
+app.use(express.json()); // Parsear el cuerpo de las peticiones como JSON
 
 // Ruta principal
 app.get('/', async (req, res) => {
   try {
     const stats = {
-      users: await db.User.count(),
-      employees: await db.Employee.count(),
-      schedules: await db.Schedule.count(),
-      requests: await db.ScheduleRequest.count()
+      users: await db.User.count(), // Contar usuarios
+      employees: await db.Employee.count(), // Contar empleados
+      schedules: await db.Schedule.count(), // Contar horarios
+      requests: await db.ScheduleRequest.count() // Contar solicitudes
     };
 
     const users = await db.User.findAll({ 
-      attributes: ['id', 'nombre', 'correo', 'rol', 'is_active', 'created_at'],
-      order: [['created_at', 'DESC']]
+      attributes: ['id', 'nombre', 'correo', 'rol', 'is_active', 'created_at'], // Obtener usuarios con sus atributos
+      order: [['created_at', 'DESC']] // Ordenar por fecha de creación
     });
 
     const employees = await db.Employee.findAll({
-      include: [{ model: db.User, as: 'usuario', attributes: ['nombre', 'correo'] }],
-      order: [['created_at', 'DESC']]
+      include: [{ model: db.User, as: 'usuario', attributes: ['nombre', 'correo'] }], // Obtener empleados con sus usuarios
+      order: [['created_at', 'DESC']] // Ordenar por fecha de creación
     });
 
     const schedules = await db.Schedule.findAll({
-      include: [{
+      include: [{ // Obtener horarios con sus empleados
         model: db.Employee,
         as: 'empleado',
         include: [{ model: db.User, as: 'usuario', attributes: ['nombre'] }]
@@ -39,7 +39,7 @@ app.get('/', async (req, res) => {
     });
 
     const requests = await db.ScheduleRequest.findAll({
-      include: [{
+      include: [{ // Obtener solicitudes con sus empleados solicitantes 
         model: db.Employee,
         as: 'empleado_solicitante',
         include: [{ model: db.User, as: 'usuario', attributes: ['nombre'] }]

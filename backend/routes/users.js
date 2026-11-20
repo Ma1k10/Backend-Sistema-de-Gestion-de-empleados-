@@ -1,6 +1,28 @@
+/**
+ * RUTAS DE USUARIOS (ADMIN)
+ * Archivo: backend/routes/users.js
+ * Descripción: Define los controladores para gestión de usuarios por administradores.
+ *              Incluye obtener, actualizar y eliminar usuarios.
+ *
+ * FUNCIONES:
+ * - getUsers: Obtener todos los usuarios (solo admin)
+ * - getUserById: Obtener usuario por ID (solo admin)
+ * - updateUser: Actualizar usuario (solo admin)
+ * - deleteUser: Eliminar usuario (solo admin)
+ */
+
 const { User } = require('../models');
 
-// Obtener todos los usuarios (solo admin)
+/**
+ * Obtener todos los usuarios (solo admin)
+ * Retorna la lista completa de usuarios con sus datos de empleado
+ *
+ * @param {Object} req - Objeto de solicitud Express 
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con la lista de usuarios
+ */
 const getUsers = async (req, res) => {
   try {
     const users = await User.findAll({
@@ -27,7 +49,18 @@ const getUsers = async (req, res) => {
   }
 };
 
-// Obtener usuario por ID (solo admin)
+/**
+ * Obtener usuario por ID (solo admin)
+ * Retorna los detalles de un usuario específico incluyendo datos de empleado
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID del usuario
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con los datos del usuario
+ */
 const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -63,7 +96,23 @@ const getUserById = async (req, res) => {
   }
 };
 
-// Actualizar usuario (solo admin)
+/**
+ * Actualizar usuario (solo admin)
+ * Permite al administrador actualizar nombre, correo, rol y estado de un usuario
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID del usuario
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.nombre - Nuevo nombre (opcional)
+ * @param {string} req.body.correo - Nuevo correo (opcional)
+ * @param {string} req.body.rol - Nuevo rol (opcional)
+ * @param {boolean} req.body.is_active - Nuevo estado activo (opcional)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con el usuario actualizado
+ */
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -136,7 +185,20 @@ const updateUser = async (req, res) => {
   }
 };
 
-// Eliminar usuario (solo admin)
+/**
+ * Eliminar usuario (solo admin)
+ * Permite al administrador eliminar un usuario del sistema
+ * No permite eliminar la propia cuenta de administrador
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID del usuario a eliminar
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del usuario autenticado
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON confirmando la eliminación
+ */
 const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;

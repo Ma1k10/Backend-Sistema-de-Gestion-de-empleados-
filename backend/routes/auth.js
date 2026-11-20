@@ -1,17 +1,50 @@
+/**
+ * RUTAS DE AUTENTICACIÓN
+ * Archivo: backend/routes/auth.js
+ * Descripción: Define los controladores para autenticación y gestión de usuarios.
+ *              Incluye registro, login, gestión de perfil, recuperación de contraseña, etc.
+ *
+ * FUNCIONES:
+ * - register: Registro de nuevos usuarios (crea solicitantes)
+ * - login: Inicio de sesión de usuarios
+ * - getProfile: Obtener perfil del usuario autenticado
+ * - updateProfile: Actualizar perfil del usuario
+ * - changePassword: Cambiar contraseña del usuario
+ * - refreshToken: Refrescar token JWT
+ * - forgotPassword: Solicitar recuperación de contraseña
+ * - resetPassword: Restablecer contraseña con token
+ * - approvePasswordReset: Aprobar solicitud de recuperación (admin)
+ * - rejectPasswordReset: Rechazar solicitud de recuperación (admin)
+ * - logout: Cerrar sesión
+ */
+
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { User } = require('../models');
 const { Op } = require('sequelize');
 const { sendPasswordResetEmail, sendPasswordResetApproval, sendPasswordResetConfirmation } = require('../config/email');
-const { 
-  authenticateToken, 
-  requireAdmin, 
+const {
+  authenticateToken,
+  requireAdmin,
   authLimiter,
   generalLimiter
 } = require('../middleware/auth');
 
-// Registro de usuarios (público - crea solicitantes)
+/**
+ * Registro de usuarios (público - crea solicitantes)
+ * Crea un nuevo usuario con rol 'solicitante' y genera una solicitud de empleo
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.nombre - Nombre del usuario
+ * @param {string} req.body.correo - Correo electrónico
+ * @param {string} req.body.contraseña - Contraseña del usuario
+ * @param {string} req.body.posicion_deseada - Posición de trabajo deseada
+ * @param {string} req.body.mensaje - Mensaje opcional de la solicitud
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con el usuario, solicitud y token
+ */
 const register = async (req, res) => {
   try {
     console.log(' Iniciando registro de usuario...');
@@ -107,7 +140,17 @@ const register = async (req, res) => {
   }
 };
 
-// Login de usuarios
+/**
+ * Login de usuarios
+ * Autentica a un usuario con correo y contraseña, genera token JWT
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.correo - Correo electrónico
+ * @param {string} req.body.contraseña - Contraseña del usuario
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con el usuario y token
+ */
 const login = async (req, res) => {
   try {
     const { correo, contraseña } = req.body;
@@ -183,7 +226,16 @@ const login = async (req, res) => {
   }
 };
 
-// Obtener perfil del usuario autenticado
+/**
+ * Obtener perfil del usuario autenticado
+ * Retorna la información del usuario actual incluyendo datos de empleado si aplica
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del usuario
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con los datos del usuario
+ */
 const getProfile = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
@@ -217,7 +269,19 @@ const getProfile = async (req, res) => {
   }
 };
 
-// Actualizar perfil del usuario autenticado
+/**
+ * Actualizar perfil del usuario autenticado
+ * Permite al usuario actualizar su nombre y correo electrónico
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.nombre - Nuevo nombre (opcional)
+ * @param {string} req.body.correo - Nuevo correo (opcional)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del usuario
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con el usuario actualizado
+ */
 const updateProfile = async (req, res) => {
   try {
     const { nombre, correo } = req.body;
@@ -278,7 +342,19 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// Cambiar contraseña
+/**
+ * Cambiar contraseña del usuario autenticado
+ * Permite al usuario cambiar su contraseña verificando la actual primero
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.contraseña_actual - Contraseña actual
+ * @param {string} req.body.contraseña_nueva - Nueva contraseña
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del usuario
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON confirmando el cambio
+ */
 const changePassword = async (req, res) => {
   try {
     const { contraseña_actual, contraseña_nueva } = req.body;
@@ -324,7 +400,16 @@ const changePassword = async (req, res) => {
   }
 };
 
-// Refrescar token
+/**
+ * Refrescar token JWT
+ * Genera un nuevo token JWT para el usuario autenticado
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del usuario
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con el nuevo token y usuario
+ */
 const refreshToken = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id, {
@@ -365,7 +450,16 @@ const refreshToken = async (req, res) => {
   }
 };
 
-// Olvidé contraseña - enviar token al administrador
+/**
+ * Olvidé contraseña - enviar solicitud al administrador
+ * Genera un token de recuperación y envía notificación a los administradores
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.correo - Correo electrónico del usuario
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON confirmando la solicitud
+ */
 const forgotPassword = async (req, res) => {
   try {
     const { correo } = req.body;
@@ -494,7 +588,17 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-// Restablecer contraseña usando token
+/**
+ * Restablecer contraseña usando token
+ * Permite al usuario restablecer su contraseña usando un token válido
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.token - Token de recuperación
+ * @param {string} req.body.nueva_contraseña - Nueva contraseña
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON confirmando el restablecimiento
+ */
 const resetPassword = async (req, res) => {
   try {
     const { token, nueva_contraseña } = req.body;
@@ -580,7 +684,18 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// Aprobar solicitud de recuperación de contraseña (para administradores por email)
+/**
+ * Aprobar solicitud de recuperación de contraseña (para administradores por email)
+ * Aproba la solicitud de recuperación y envía un nuevo token al empleado
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.token - Token de recuperación original
+ * @param {Object} req.query - Query parameters
+ * @param {string} req.query.admin_email - Email del administrador (opcional)
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta HTML confirmando la aprobación
+ */
 const approvePasswordReset = async (req, res) => {
   try {
     const { token } = req.params;
@@ -729,7 +844,19 @@ const approvePasswordReset = async (req, res) => {
   }
 };
 
-// Rechazar solicitud de recuperación de contraseña (para administradores por email)
+/**
+ * Rechazar solicitud de recuperación de contraseña (para administradores por email)
+ * Rechaza la solicitud de recuperación y limpia el token
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.token - Token de recuperación original
+ * @param {Object} req.query - Query parameters
+ * @param {string} req.query.admin_email - Email del administrador (opcional)
+ * @param {string} req.query.reason - Motivo del rechazo (opcional)
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta HTML confirmando el rechazo
+ */
 const rejectPasswordReset = async (req, res) => {
   try {
     const { token } = req.params;
@@ -844,7 +971,14 @@ const rejectPasswordReset = async (req, res) => {
   }
 };
 
-// Logout (marcar token como inválido en el lado del cliente)
+/**
+ * Logout (cerrar sesión)
+ * Marca el token como inválido en el lado del cliente
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON confirmando el logout
+ */
 const logout = (req, res) => {
   res.json({
     success: true,

@@ -1,6 +1,31 @@
+/**
+ * RUTAS DE EMPLEADOS
+ * Archivo: backend/routes/employees.js
+ * Descripción: Define los controladores para gestión de empleados y solicitudes de empleo.
+ *              Incluye CRUD de empleados y gestión de solicitudes de empleo.
+ *
+ * FUNCIONES:
+ * - getEmployees: Obtener todos los empleados
+ * - createEmployee: Crear empleado (solo admin)
+ * - getEmployeeById: Obtener empleado por ID
+ * - updateEmployee: Actualizar empleado (solo admin)
+ * - deleteEmployee: Eliminar empleado (solo admin)
+ * - getEmployeeRequests: Obtener solicitudes de empleados (solo admin)
+ * - createEmployeeRequest: Crear solicitud de empleado
+ * - approveEmployeeRequest: Aprobar solicitud de empleado (solo admin)
+ * - rejectEmployeeRequest: Rechazar solicitud de empleado (solo admin)
+ */
+
 const { User, Employee, EmployeeRequest } = require('../models');
 
-// Obtener todos los empleados
+/**
+ * Obtener todos los empleados
+ * Retorna la lista completa de empleados con sus datos de usuario
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con la lista de empleados
+ */
 const getEmployees = async (req, res) => {
   try {
     const employees = await Employee.findAll({
@@ -26,23 +51,77 @@ const getEmployees = async (req, res) => {
   }
 };
 
-// Crear empleado (solo admin)
+/**
+ * Crear empleado (solo admin)
+ * Crea un nuevo empleado, opcionalmente creando el usuario asociado
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.posicion - Posición del empleado
+ * @param {string} req.body.fecha_contratacion - Fecha de contratación
+ * @param {boolean} req.body.estado - Estado del empleado (opcional)
+ * @param {Object} req.body.usuario - Datos del usuario a crear (opcional)
+ * @param {number} req.body.id_usuario - ID de usuario existente (opcional)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con el empleado creado
+ */
 const createEmployee = async (req, res) => {
   try {
-    const { posicion, fecha_contratacion, estado = true, id_usuario } = req.body;
+    const { posicion, fecha_contratacion, estado = true, usuario, id_usuario } = req.body;
 
-    // Verificar si el usuario existe
-    const user = await User.findByPk(id_usuario);
-    if (!user) {
-      return res.status(404).json({
+    let userId;
+
+    // Si se proporcionan datos de usuario, crear el usuario primero
+    if (usuario) {
+      // Verificar si el correo ya existe
+      const existingUser = await User.findOne({ where: { correo: usuario.correo } });
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          message: 'El correo ya está registrado',
+          error: 'EMAIL_ALREADY_EXISTS'
+        });
+      }
+
+      // Hashear contraseña si se proporciona
+      const bcrypt = require('bcryptjs');
+      const hashedPassword = usuario.contrasena 
+        ? await bcrypt.hash(usuario.contrasena, 10) 
+        : await bcrypt.hash('temp123', 10);
+
+      // Crear usuario
+      const newUser = await User.create({
+        nombre: usuario.nombre,
+        correo: usuario.correo,
+        contraseña: hashedPassword,
+        rol: usuario.rol || 'empleado',
+        is_active: true
+      });
+
+      userId = newUser.id;
+    } else if (id_usuario) {
+      // Usar usuario existente
+      const user = await User.findByPk(id_usuario);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Usuario no encontrado',
+          error: 'USER_NOT_FOUND'
+        });
+      }
+      userId = id_usuario;
+    } else {
+      return res.status(400).json({
         success: false,
-        message: 'Usuario no encontrado',
-        error: 'USER_NOT_FOUND'
+        message: 'Se debe proporcionar usuario o id_usuario',
+        error: 'MISSING_USER_DATA'
       });
     }
 
     // Verificar si el usuario ya tiene un registro de empleado
-    const existingEmployee = await Employee.findOne({ where: { id_usuario } });
+    const existingEmployee = await Employee.findOne({ where: { id_usuario: userId } });
     if (existingEmployee) {
       return res.status(409).json({
         success: false,
@@ -56,7 +135,7 @@ const createEmployee = async (req, res) => {
       posicion,
       fecha_contratacion,
       estado,
-      id_usuario
+      id_usuario: userId
     });
 
     // Obtener empleado creado con su usuario
@@ -83,7 +162,16 @@ const createEmployee = async (req, res) => {
   }
 };
 
-// Obtener empleado por ID
+/**
+ * Obtener empleado por ID
+ * Retorna los detalles de un empleado específico incluyendo datos de usuario
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID del empleado
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con los datos del empleado
+ */
 const getEmployeeById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -118,11 +206,27 @@ const getEmployeeById = async (req, res) => {
   }
 };
 
-// Actualizar empleado (solo admin)
+/**
+ * Actualizar empleado (solo admin)
+ * Permite al administrador actualizar datos del empleado y del usuario asociado
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID del empleado
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.posicion - Nueva posición (opcional)
+ * @param {string} req.body.fecha_contratacion - Nueva fecha de contratación (opcional)
+ * @param {boolean} req.body.estado - Nuevo estado (opcional)
+ * @param {Object} req.body.usuario - Datos del usuario a actualizar (opcional)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con el empleado actualizado
+ */
 const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
-    const { posicion, fecha_contratacion, estado, id_usuario } = req.body;
+    const { posicion, fecha_contratacion, estado, usuario } = req.body;
 
     // Verificar si el empleado existe
     const employee = await Employee.findByPk(id);
@@ -134,37 +238,30 @@ const updateEmployee = async (req, res) => {
       });
     }
 
-    // Si se actualiza el usuario, verificar que exista
-    if (id_usuario && id_usuario !== employee.id_usuario) {
-      const user = await User.findByPk(id_usuario);
+    // Actualizar datos del usuario si se proporcionan
+    if (usuario) {
+      const user = await User.findByPk(employee.id_usuario);
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: 'Usuario no encontrado',
+          message: 'Usuario asociado no encontrado',
           error: 'USER_NOT_FOUND'
         });
       }
 
-      // Verificar que el nuevo usuario no tenga ya un registro de empleado
-      const existingEmployee = await Employee.findOne({ 
-        where: { 
-          id_usuario,
-          id: { [require('../models').Sequelize.Op.ne]: id }
-        } 
-      });
-      
-      if (existingEmployee) {
-        return res.status(409).json({
-          success: false,
-          message: 'Este usuario ya tiene un registro de empleado',
-          error: 'EMPLOYEE_ALREADY_EXISTS'
-        });
-      }
+      await User.update(
+        {
+          nombre: usuario.nombre || user.nombre,
+          correo: usuario.correo || user.correo,
+          rol: usuario.rol || user.rol
+        },
+        { where: { id: employee.id_usuario } }
+      );
     }
 
     // Actualizar empleado
     const [updatedRowsCount] = await Employee.update(
-      { posicion, fecha_contratacion, estado, id_usuario },
+      { posicion, fecha_contratacion, estado },
       { where: { id } }
     );
 
@@ -200,7 +297,18 @@ const updateEmployee = async (req, res) => {
   }
 };
 
-// Eliminar empleado (solo admin)
+/**
+ * Eliminar empleado (solo admin)
+ * Permite al administrador eliminar un empleado del sistema
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID del empleado a eliminar
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON confirmando la eliminación
+ */
 const deleteEmployee = async (req, res) => {
   try {
     const { id } = req.params;
@@ -232,7 +340,16 @@ const deleteEmployee = async (req, res) => {
   }
 };
 
-// Obtener solicitudes de empleados (solo admin)
+/**
+ * Obtener solicitudes de empleados (solo admin)
+ * Retorna la lista de solicitudes de empleo pendientes y procesadas
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con la lista de solicitudes
+ */
 const getEmployeeRequests = async (req, res) => {
   try {
     // Primero intentar sin include para ver si funciona
@@ -256,7 +373,20 @@ const getEmployeeRequests = async (req, res) => {
   }
 };
 
-// Crear solicitud de empleado
+/**
+ * Crear solicitud de empleado
+ * Permite a un usuario solicitante crear una solicitud de empleo
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.posicion_deseada - Posición de trabajo deseada
+ * @param {string} req.body.mensaje - Mensaje opcional del solicitante
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del usuario
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'solicitante')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con la solicitud creada
+ */
 const createEmployeeRequest = async (req, res) => {
   try {
     const { posicion_deseada, mensaje = '' } = req.body;
@@ -322,7 +452,21 @@ const createEmployeeRequest = async (req, res) => {
   }
 };
 
-// Aprobar solicitud de empleado (solo admin)
+/**
+ * Aprobar solicitud de empleado (solo admin)
+ * Aprueba una solicitud de empleo, convierte al usuario en empleado y crea el registro
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID de la solicitud
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.comentarios_admin - Comentarios del administrador (opcional)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del administrador
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con la solicitud aprobada
+ */
 const approveEmployeeRequest = async (req, res) => {
   try {
     const { id } = req.params;
@@ -390,7 +534,21 @@ const approveEmployeeRequest = async (req, res) => {
   }
 };
 
-// Rechazar solicitud de empleado (solo admin)
+/**
+ * Rechazar solicitud de empleado (solo admin)
+ * Rechaza una solicitud de empleo con comentarios opcionales
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID de la solicitud
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.comentarios_admin - Comentarios del administrador (opcional)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del administrador
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con la solicitud rechazada
+ */
 const rejectEmployeeRequest = async (req, res) => {
   try {
     const { id } = req.params;
@@ -460,7 +618,12 @@ const rejectEmployeeRequest = async (req, res) => {
 
 module.exports = {
   getEmployees,
+  getEmployeeById,
   createEmployee,
   updateEmployee,
-  deleteEmployee
+  deleteEmployee,
+  getEmployeeRequests,
+  createEmployeeRequest,
+  approveEmployeeRequest,
+  rejectEmployeeRequest
 };

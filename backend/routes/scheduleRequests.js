@@ -1,6 +1,38 @@
+/**
+ * RUTAS DE SOLICITUDES DE CAMBIO DE HORARIO
+ * Archivo: backend/routes/scheduleRequests.js
+ * Descripción: Define los controladores para gestión de solicitudes de cambio de horario.
+ *              Incluye consulta, creación, aprobación y rechazo de solicitudes.
+ *
+ * FUNCIONES:
+ * - getScheduleRequests: Obtener todas las solicitudes con filtros y paginación
+ * - createScheduleRequest: Crear solicitud de cambio (empleado)
+ * - getScheduleRequestById: Obtener solicitud por ID
+ * - approveOrRejectScheduleRequest: Aprobar o rechazar solicitud (solo admin)
+ * - deleteScheduleRequest: Eliminar solicitud (solo admin)
+ */
+
 const { Employee, User, ScheduleRequest } = require('../models');
 
-// Obtener todas las solicitudes de cambio de horario
+/**
+ * Obtener todas las solicitudes de cambio de horario
+ * Retorna solicitudes con filtros opcionales y paginación.
+ * Los administradores ven todas las solicitudes, los empleados solo las suyas.
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.query - Query parameters
+ * @param {number} req.query.id_empleado - Filtro por ID de empleado (opcional)
+ * @param {string} req.query.estado - Filtro por estado (opcional)
+ * @param {string} req.query.fecha_inicio - Fecha inicio del rango (opcional)
+ * @param {string} req.query.fecha_fin - Fecha fin del rango (opcional)
+ * @param {number} req.query.page - Número de página (default: 1)
+ * @param {number} req.query.limit - Límite por página (default: 50)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario
+ * @param {number} req.user.id - ID del usuario
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con solicitudes y metadata de paginación
+ */
 const getScheduleRequests = async (req, res) => {
   try {
     const { 
@@ -60,7 +92,7 @@ const getScheduleRequests = async (req, res) => {
 
     // Calcular offset para paginación
     const offset = (parseInt(page) - 1) * parseInt(limit);
-
+    // Buscar solicitudes con paginación
     const requests = await ScheduleRequest.findAndCountAll({
       where,
       include: [{
@@ -81,7 +113,7 @@ const getScheduleRequests = async (req, res) => {
       limit: parseInt(limit),
       offset
     });
-
+    // Responder con las solicitudes encontradas
     res.json({
       success: true,
       data: {
@@ -104,7 +136,24 @@ const getScheduleRequests = async (req, res) => {
   }
 };
 
-// Crear solicitud de cambio (empleado)
+/**
+ * Crear solicitud de cambio (empleado)
+ * Permite a un empleado crear una solicitud de cambio de horario
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.fecha_solicitada - Fecha para la que se solicita el cambio
+ * @param {string} req.body.hora_actual_inicio - Hora de inicio actual (opcional)
+ * @param {string} req.body.hora_actual_fin - Hora de fin actual (opcional)
+ * @param {string} req.body.nueva_hora_inicio - Nueva hora de inicio
+ * @param {string} req.body.nueva_hora_fin - Nueva hora de fin
+ * @param {string} req.body.motivo - Motivo del cambio (opcional)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del usuario
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'empleado')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con la solicitud creada
+ */
 const createScheduleRequest = async (req, res) => {
   try {
     const { 
@@ -129,20 +178,40 @@ const createScheduleRequest = async (req, res) => {
       });
     }
 
-    // Verificar si ya existe una solicitud pendiente para ese empleado en esa fecha
+    // Verificar si ya existe una solicitud aprobada para este empleado
+    // Si ya tiene una solicitud aprobada, no puede crear otra nueva
+    const existingApprovedRequest = await ScheduleRequest.findOne({
+      where: {
+        id_empleado: employee.id,
+        estado: 'aprobada'
+      }
+    });
+
+    if (existingApprovedRequest) {
+      return res.status(409).json({
+        success: false,
+        message: 'Ya tienes una solicitud aprobada. No puedes realizar otra solicitud mientras exista una aprobada.',
+        error: 'SCHEDULE_REQUEST_ALREADY_APPROVED'
+      });
+    }
+
+    // Verificar si ya existe una solicitud previa para ese mismo horario
+    // (misma fecha, mismo horario actual y mismo empleado)
     const existingRequest = await ScheduleRequest.findOne({
       where: {
         id_empleado: employee.id,
         fecha_solicitada,
+        hora_actual_inicio,
+        hora_actual_fin,
         estado: 'pendiente'
       }
     });
-
+    // Si ya existe una solicitud pendiente para el mismo horario, retornar error
     if (existingRequest) {
       return res.status(409).json({
         success: false,
-        message: 'Ya existe una solicitud pendiente para este empleado en esa fecha',
-        error: 'PENDING_REQUEST_ALREADY_EXISTS'
+        message: 'Ya existe una solicitud previa para este horario. Solo puedes hacer una solicitud por horario.',
+        error: 'SCHEDULE_REQUEST_ALREADY_EXISTS_FOR_HORARIO'
       });
     }
 
@@ -170,6 +239,7 @@ const createScheduleRequest = async (req, res) => {
       }]
     });
 
+    // Responder con la solicitud creada
     res.status(201).json({
       success: true,
       message: 'Solicitud de cambio creada exitosamente',
@@ -185,7 +255,19 @@ const createScheduleRequest = async (req, res) => {
   }
 };
 
-// Obtener solicitud de cambio por ID
+/**
+ * Obtener solicitud de cambio por ID
+ * Retorna los detalles de una solicitud específica con verificación de permisos
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID de la solicitud
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario
+ * @param {number} req.user.id - ID del usuario
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con los datos de la solicitud
+ */
 const getScheduleRequestById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -224,6 +306,7 @@ const getScheduleRequestById = async (req, res) => {
       });
     }
 
+    // Responder con la solicitud encontrada
     res.json({
       success: true,
       data: { request }
@@ -238,7 +321,22 @@ const getScheduleRequestById = async (req, res) => {
   }
 };
 
-// Aprobar o rechazar solicitud de cambio (solo admin)
+/**
+ * Aprobar o rechazar solicitud de cambio (solo admin)
+ * Procesa una solicitud de cambio de horario, actualizando el horario si se aprueba
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID de la solicitud
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.action - Acción a realizar: 'approve' o 'reject'
+ * @param {string} req.body.comentarios_revision - Comentarios del revisor (opcional)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del administrador
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con la solicitud procesada
+ */
 const approveOrRejectScheduleRequest = async (req, res) => {
   try {
     const { id } = req.params;
@@ -343,7 +441,18 @@ const approveOrRejectScheduleRequest = async (req, res) => {
 };
 
 
-// Eliminar solicitud de cambio (solo admin)
+/**
+ * Eliminar solicitud de cambio (solo admin)
+ * Permite al administrador eliminar una solicitud de cambio de horario
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID de la solicitud a eliminar
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON confirmando la eliminación
+ */
 const deleteScheduleRequest = async (req, res) => {
   try {
     const { id } = req.params;

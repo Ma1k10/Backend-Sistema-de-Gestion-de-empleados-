@@ -1,12 +1,40 @@
+/**
+ * MIDDLEWARE DE AUTENTICACIÓN Y AUTORIZACIÓN
+ * Archivo: backend/middleware/auth.js
+ * Descripción: Contiene middleware para autenticación JWT, verificación de roles,
+ *              control de acceso a recursos y validación de permisos.
+ *
+ * FUNCIONALIDADES:
+ * - Autenticación de usuarios mediante tokens JWT
+ * - Verificación de roles (admin, empleado)
+ * - Control de acceso a recursos propios
+ * - Rate limiting para prevenir abusos
+ * - Validación de formato de email
+ */
+
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 
-// Middleware de autenticación JWT
+/**
+ * Middleware de autenticación JWT
+ * Verifica que el token JWT sea válido y que el usuario exista y esté activo
+ *
+ * PROCESO:
+ * 1. Extrae el token del header Authorization (formato: Bearer <token>)
+ * 2. Verifica la firma del token usando JWT_SECRET
+ * 3. Busca el usuario en la base de datos
+ * 4. Verifica que el usuario esté activo
+ * 5. Agrega el usuario al objeto request para uso posterior
+ *
+ * ERRORES:
+ * - 401: Token no proporcionado, inválido, expirado o usuario inactivo
+ * - 500: Error interno del servidor
+ */
 const authenticateToken = async (req, res, next) => {
   try {
-    // Obtener el token del header
+    // Obtener el token del header Authorization
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer <token>
+    const token = authHeader && authHeader.split(' ')[1]; // Formato: Bearer <token>
 
     if (!token) {
       return res.status(401).json({
@@ -16,10 +44,10 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Verificar el token
+    // Verificar la firma del token y decodificarlo
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Buscar el usuario en la base de datos
+
+    // Buscar el usuario en la base de datos (excluyendo contraseña)
     const user = await User.findByPk(decoded.id, {
       attributes: { exclude: ['contraseña'] }
     });
@@ -41,7 +69,7 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Agregar el usuario al request
+    // Agregar el usuario al request para uso en siguientes middlewares/rutas
     req.user = user;
     next();
   } catch (error) {
@@ -68,7 +96,17 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-// Middleware de verificación de rol
+/**
+ * Middleware de verificación de roles
+ * Verifica que el usuario autenticado tenga uno de los roles permitidos
+ *
+ * @param {string|string[]} roles - Rol o array de roles permitidos (ej: 'admin' o ['admin', 'empleado'])
+ * @returns {function} Middleware function
+ *
+ * USO:
+ * - checkRole('admin') - Solo admins
+ * - checkRole(['admin', 'empleado']) - Admins o empleados
+ */
 const checkRole = (roles) => {
   return (req, res, next) => {
     // Verificar que el usuario esté autenticado
@@ -82,7 +120,7 @@ const checkRole = (roles) => {
 
     // Convertir roles a array si es un string
     const allowedRoles = Array.isArray(roles) ? roles : [roles];
-    
+
     // Verificar si el rol del usuario está en los roles permitidos
     if (!allowedRoles.includes(req.user.rol)) {
       return res.status(403).json({
@@ -98,16 +136,18 @@ const checkRole = (roles) => {
   };
 };
 
-// Middleware para verificar si es admin
-const requireAdmin = checkRole('admin');
+// Middleware preconfigurados para roles específicos
+const requireAdmin = checkRole('admin');          // Solo administradores
+const requireEmployee = checkRole('empleado');    // Solo empleados
+const requireAuth = checkRole(['admin', 'empleado']); // Admins o empleados
 
-// Middleware para verificar si es empleado
-const requireEmployee = checkRole('empleado');
-
-// Middleware para verificar si es admin o empleado
-const requireAuth = checkRole(['admin', 'empleado']);
-
-// Middleware opcional: permite acceso público pero agrega info de usuario si está autenticado
+/**
+ * Middleware de autenticación opcional
+ * Permite acceso público pero agrega información del usuario si está autenticado
+ *
+ * USO: Útil para endpoints que funcionan tanto para usuarios autenticados
+ *      como para usuarios anónimos (ej: ver catálogo público)
+ */
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
@@ -123,7 +163,8 @@ const optionalAuth = async (req, res, next) => {
         req.user = user;
       }
     }
-    
+
+    // Continuar aunque no haya token o sea inválido
     next();
   } catch (error) {
     // En caso de error con el token, continuamos sin usuario
@@ -131,22 +172,35 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
-// Middleware para verificar si el usuario puede acceder a su propio recurso
+/**
+ * Middleware para verificar propiedad de recursos
+ * Verifica que el usuario pueda acceder solo a sus propios recursos
+ *
+ * @param {string} resourceIdParam - Nombre del parámetro con el ID del recurso (default: 'id')
+ * @param {object} resourceModel - Modelo Sequelize para verificar propiedad (opcional)
+ * @returns {function} Middleware function
+ *
+ * REGLAS:
+ * - Los admins pueden acceder a cualquier recurso
+ * - Los empleados solo pueden acceder a sus propios recursos
+ * - Si se proporciona un modelo, verifica el campo id_usuario
+ * - Si no hay modelo, verifica directamente el ID
+ */
 const checkResourceOwnership = (resourceIdParam = 'id', resourceModel = null) => {
   return async (req, res, next) => {
     try {
-      // Los admins pueden acceder a todo
+      // Los admins pueden acceder a cualquier recurso
       if (req.user.rol === 'admin') {
         return next();
       }
 
       // Los empleados solo pueden acceder a sus propios recursos
       const resourceId = req.params[resourceIdParam];
-      
+
       if (resourceModel) {
-        // Si se proporciona un modelo, verificamos la propiedad
+        // Si se proporciona un modelo, verificamos la propiedad en la base de datos
         const resource = await resourceModel.findByPk(resourceId);
-        
+
         if (!resource) {
           return res.status(404).json({
             success: false,
@@ -155,7 +209,7 @@ const checkResourceOwnership = (resourceIdParam = 'id', resourceModel = null) =>
           });
         }
 
-        // Verificar si el recurso pertenece al usuario
+        // Verificar si el recurso pertenece al usuario (campo id_usuario)
         if (resource.id_usuario !== req.user.id) {
           return res.status(403).json({
             success: false,
@@ -164,7 +218,7 @@ const checkResourceOwnership = (resourceIdParam = 'id', resourceModel = null) =>
           });
         }
       } else {
-        // Si no hay modelo, verificamos directamente el ID
+        // Si no hay modelo, verificamos directamente que el ID coincida con el del usuario
         if (resourceId !== req.user.id.toString()) {
           return res.status(403).json({
             success: false,
@@ -186,25 +240,34 @@ const checkResourceOwnership = (resourceIdParam = 'id', resourceModel = null) =>
   };
 };
 
-// Middleware para limitar tasa de solicitudes (Rate Limiting)
+/**
+ * Middleware de Rate Limiting (limitación de tasa de solicitudes)
+ * Prevenir abusos limitando el número de solicitudes por IP en un periodo de tiempo
+ *
+ * @param {number} maxRequests - Máximo de solicitudes permitidas (default: 100)
+ * @param {number} windowMs - Ventana de tiempo en milisegundos (default: 15 minutos)
+ * @returns {function} Middleware function
+ *
+ * USO: Proteger endpoints contra ataques de fuerza bruta o DoS
+ */
 const rateLimiter = (maxRequests = 100, windowMs = 15 * 60 * 1000) => {
-  const requests = new Map();
+  const requests = new Map(); // Almacena solicitudes por IP
 
   return (req, res, next) => {
     const key = req.ip || req.connection.remoteAddress;
     const now = Date.now();
     const windowStart = now - windowMs;
 
-    // Limpiar solicitudes antiguas
+    // Limpiar solicitudes antiguas (fuera de la ventana de tiempo)
     if (requests.has(key)) {
       const userRequests = requests.get(key).filter(timestamp => timestamp > windowStart);
       requests.set(key, userRequests);
     }
 
-    // Obtener solicitudes actuales
+    // Obtener solicitudes actuales del usuario
     const currentRequests = requests.get(key) || [];
 
-    // Verificar límite
+    // Verificar si se excedió el límite
     if (currentRequests.length >= maxRequests) {
       return res.status(429).json({
         success: false,
@@ -214,7 +277,7 @@ const rateLimiter = (maxRequests = 100, windowMs = 15 * 60 * 1000) => {
       });
     }
 
-    // Agregar solicitud actual
+    // Agregar solicitud actual y continuar
     currentRequests.push(now);
     requests.set(key, currentRequests);
 
@@ -222,10 +285,15 @@ const rateLimiter = (maxRequests = 100, windowMs = 15 * 60 * 1000) => {
   };
 };
 
-// Middleware para validar formato de email
+/**
+ * Middleware para validar formato de email
+ * Verifica que el email tenga un formato válido usando regex
+ *
+ * USO: Validar emails antes de procesar solicitudes
+ */
 const validateEmail = (req, res, next) => {
   const email = req.body.correo || req.body.email;
-  
+
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({
       success: false,
@@ -237,14 +305,17 @@ const validateEmail = (req, res, next) => {
   next();
 };
 
+/**
+ * Exportar todos los middleware de autenticación y autorización
+ */
 module.exports = {
-  authenticateToken,
-  checkRole,
-  requireAdmin,
-  requireEmployee,
-  requireAuth,
-  optionalAuth,
-  checkResourceOwnership,
-  rateLimiter,
-  validateEmail
+  authenticateToken,           // Verificar token JWT
+  checkRole,                  // Verificar roles de usuario
+  requireAdmin,               // Requerir rol de admin
+  requireEmployee,            // Requerir rol de empleado
+  requireAuth,                // Requerir autenticación (admin o empleado)
+  optionalAuth,               // Autenticación opcional
+  checkResourceOwnership,     // Verificar propiedad de recursos
+  rateLimiter,                // Limitar tasa de solicitudes
+  validateEmail               // Validar formato de email
 };

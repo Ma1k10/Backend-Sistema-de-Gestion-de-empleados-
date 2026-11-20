@@ -1,11 +1,12 @@
-require('dotenv').config({ path: '.env' });
-require('dotenv').config({ path: '.env.production' });
+require('dotenv').config({ path: '.env' }); // Cargar variables de entorno
+require('dotenv').config({ path: '.env.production' }); // Cargar variables de entorno de producción
 
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const { sequelize } = require('./models');
+const express = require('express'); // Framework web
+const http = require('http'); // Servidor HTTP
+const cors = require('cors'); // Middleware para CORS
+const helmet = require('helmet'); // Middleware para seguridad HTTP
+const rateLimit = require('express-rate-limit'); // Middleware para limitar peticiones
+const { sequelize } = require('./models'); // Conexión a la base de datos
 
 // Forzar NODE_ENV a production para asegurar configuración correcta
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
@@ -24,12 +25,12 @@ const {
 } = require('./middleware/security');
 
 // Importar rutas
-const authRoutes = require('./routes/auth');
-const employeeRoutes = require('./routes/employees');
-const scheduleRoutes = require('./routes/schedules');
-const scheduleRequestRoutes = require('./routes/scheduleRequests');
-const notificationRoutes = require('./routes/notifications');
-const employeeRequestRoutes = require('./routes/employeeRequests');
+const authRoutes = require('./routes/auth'); // Rutas de autenticación
+const employeeRoutes = require('./routes/employees'); // Rutas de empleados
+const scheduleRoutes = require('./routes/schedules'); // Rutas de horarios
+const scheduleRequestRoutes = require('./routes/scheduleRequests'); // Rutas de solicitudes de horarios
+const notificationRoutes = require('./routes/notifications'); // Rutas de notificaciones
+const employeeRequestRoutes = require('./routes/employeeRequests'); // Rutas de solicitudes de empleados
 
 // Crear aplicación Express
 const app = express();
@@ -44,69 +45,70 @@ app.use(sanitizeInput);
 app.use(requestLogger);
 
 // Middlewares básicos
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '10mb' })); // Parsear JSON
+app.use(express.urlencoded({ extended: true, limit: '10mb' })); // Parsear URL encoded
 
 // Verificar conexión a base de datos
 app.use(checkDatabaseConnection);
 
 // Rutas de autenticación (sin rate limiting en desarrollo)
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === 'production') { 
   app.use('/api/auth', authLimiter);
 }
-app.post('/api/auth/register', authRoutes.register);
-app.post('/api/auth/login', authRoutes.login);
-app.post('/api/auth/logout', authRoutes.logout);
-app.get('/api/auth/profile', authRoutes.getProfile);
-app.put('/api/auth/profile', authRoutes.updateProfile);
-app.put('/api/auth/change-password', authRoutes.changePassword);
-app.post('/api/auth/refresh', authRoutes.refreshToken);
-app.post('/api/auth/forgot-password', authRoutes.forgotPassword);
-app.post('/api/auth/reset-password', authRoutes.resetPassword);
-app.get('/api/auth/approve-reset/:token', authRoutes.approvePasswordReset);
-app.get('/api/auth/reject-reset/:token', authRoutes.rejectPasswordReset);
+app.post('/api/auth/register', authRoutes.register); // Registrar usuario
+app.post('/api/auth/login', authRoutes.login); // Iniciar sesión
+app.post('/api/auth/logout', authRoutes.logout); // Cerrar sesión
+app.get('/api/auth/profile', authRoutes.getProfile); // Obtener perfil
+app.put('/api/auth/profile', authRoutes.updateProfile); // Actualizar perfil
+app.put('/api/auth/change-password', authRoutes.changePassword); // Cambiar contraseña
+app.post('/api/auth/refresh', authRoutes.refreshToken); // Refrescar token
+app.post('/api/auth/forgot-password', authRoutes.forgotPassword); // Recuperar contraseña
+app.post('/api/auth/reset-password', authRoutes.resetPassword); // Restablecer contraseña
+app.get('/api/auth/approve-reset/:token', authRoutes.approvePasswordReset); // Aprobar restablecimiento de contraseña
+app.get('/api/auth/reject-reset/:token', authRoutes.rejectPasswordReset); // Rechazar restablecimiento de contraseña
 
 
 // Rutas de empleados (protegidas)
-app.use('/api/employees', require('./middleware/auth').authenticateToken);
-app.get('/api/employees', require('./middleware/auth').requireAdmin, employeeRoutes.getEmployees);
-app.post('/api/employees', require('./middleware/auth').requireAdmin, employeeRoutes.createEmployee);
-app.put('/api/employees/:id', require('./middleware/auth').requireAdmin, employeeRoutes.updateEmployee);
-app.delete('/api/employees/:id', require('./middleware/auth').requireAdmin, employeeRoutes.deleteEmployee);
+app.use('/api/employees', require('./middleware/auth').authenticateToken); // Autenticar token
+app.get('/api/employees', require('./middleware/auth').requireAdmin, employeeRoutes.getEmployees); // Obtener todos los empleados (solo admin)
+app.get('/api/employees/:id', require('./middleware/auth').requireAdmin, employeeRoutes.getEmployeeById); // Obtener empleado por ID (solo admin)
+app.post('/api/employees', require('./middleware/auth').requireAdmin, employeeRoutes.createEmployee); // Crear empleado (solo admin)
+app.put('/api/employees/:id', require('./middleware/auth').requireAdmin, employeeRoutes.updateEmployee); // Actualizar empleado (solo admin)
+app.delete('/api/employees/:id', require('./middleware/auth').requireAdmin, employeeRoutes.deleteEmployee); // Eliminar empleado (solo admin)
 
 // Rutas de horarios (protegidas)
-app.get('/api/schedules', require('./middleware/auth').authenticateToken, require('./middleware/auth').requireAdmin, scheduleRoutes.getSchedules);
-app.post('/api/schedules', require('./middleware/auth').authenticateToken, require('./middleware/auth').requireAdmin, scheduleRoutes.createSchedule);
-app.put('/api/schedules/:id', require('./middleware/auth').authenticateToken, require('./middleware/auth').requireAdmin, scheduleRoutes.updateSchedule);
-app.delete('/api/schedules/:id', require('./middleware/auth').authenticateToken, require('./middleware/auth').requireAdmin, scheduleRoutes.deleteSchedule);
+app.get('/api/schedules', require('./middleware/auth').authenticateToken, require('./middleware/auth').requireAdmin, scheduleRoutes.getSchedules); // Obtener todos los horarios (solo admin)
+app.post('/api/schedules', require('./middleware/auth').authenticateToken, require('./middleware/auth').requireAdmin, scheduleRoutes.createSchedule); // Crear horario (solo admin)
+app.put('/api/schedules/:id', require('./middleware/auth').authenticateToken, require('./middleware/auth').requireAdmin, scheduleRoutes.updateSchedule); // Actualizar horario (solo admin)
+app.delete('/api/schedules/:id', require('./middleware/auth').authenticateToken, require('./middleware/auth').requireAdmin, scheduleRoutes.deleteSchedule); // Eliminar horario (solo admin)
 
 // Rutas de horarios para empleados
-app.get('/api/my-schedules', require('./middleware/auth').authenticateToken, scheduleRoutes.getMySchedules);
+app.get('/api/my-schedules', require('./middleware/auth').authenticateToken, scheduleRoutes.getMySchedules); // Obtener horarios del empleado autenticado
 
 // Rutas de solicitudes de cambio de horario (protegidas)
-app.use('/api/schedule-requests', require('./middleware/auth').authenticateToken);
-app.get('/api/schedule-requests', scheduleRequestRoutes.getScheduleRequests);
-app.post('/api/schedule-requests', scheduleRequestRoutes.createScheduleRequest);
-app.put('/api/schedule-requests/:id', require('./middleware/auth').requireAdmin, scheduleRequestRoutes.approveOrRejectScheduleRequest);
+app.use('/api/schedule-requests', require('./middleware/auth').authenticateToken); // Autenticar token
+app.get('/api/schedule-requests', scheduleRequestRoutes.getScheduleRequests); // Obtener todas las solicitudes (solo admin)
+app.post('/api/schedule-requests', scheduleRequestRoutes.createScheduleRequest); // Crear solicitud
+app.put('/api/schedule-requests/:id', require('./middleware/auth').requireAdmin, scheduleRequestRoutes.approveOrRejectScheduleRequest); // Aprobar o rechazar solicitud (solo admin)
 
 // Rutas de notificaciones (protegidas)
-app.use('/api/notifications', require('./middleware/auth').authenticateToken);
-app.get('/api/notifications', notificationRoutes.getNotifications);
-app.get('/api/notifications/admin', require('./middleware/auth').requireAdmin, notificationRoutes.getAdminNotifications);
-app.put('/api/notifications/:id/read', notificationRoutes.markAsRead);
-app.put('/api/notifications/read-all', notificationRoutes.markAllAsRead);
-app.delete('/api/notifications/:id', notificationRoutes.deleteNotification);
+app.use('/api/notifications', require('./middleware/auth').authenticateToken); // Autenticar token
+app.get('/api/notifications', notificationRoutes.getNotifications); // Obtener notificaciones del empleado autenticado
+app.get('/api/notifications/admin', require('./middleware/auth').requireAdmin, notificationRoutes.getAdminNotifications); // Obtener todas las notificaciones (solo admin)
+app.put('/api/notifications/:id/read', notificationRoutes.markAsRead); // Marcar notificación como leída
+app.put('/api/notifications/read-all', notificationRoutes.markAllAsRead); // Marcar todas las notificaciones como leídas
+app.delete('/api/notifications/:id', notificationRoutes.deleteNotification); // Eliminar notificación
 
 // Rutas de solicitudes de empleo (protegidas)
-app.use('/api/employee-requests', require('./middleware/auth').authenticateToken);
-app.get('/api/employee-requests', require('./middleware/auth').requireAdmin, employeeRequestRoutes.getEmployeeRequests);
-app.get('/api/employee-requests/my', employeeRequestRoutes.getMyEmployeeRequests);
-app.get('/api/employee-requests/:id', require('./middleware/auth').requireAdmin, employeeRequestRoutes.getEmployeeRequestById);
-app.put('/api/employee-requests/:id/approve', require('./middleware/auth').requireAdmin, employeeRequestRoutes.approveEmployeeRequest);
-app.put('/api/employee-requests/:id/reject', require('./middleware/auth').requireAdmin, employeeRequestRoutes.rejectEmployeeRequest);
+app.use('/api/employee-requests', require('./middleware/auth').authenticateToken); // Autenticar token
+app.get('/api/employee-requests', require('./middleware/auth').requireAdmin, employeeRequestRoutes.getEmployeeRequests); // Obtener todas las solicitudes (solo admin)
+app.get('/api/employee-requests/my', employeeRequestRoutes.getMyEmployeeRequests); // Obtener solicitudes del empleado autenticado
+app.get('/api/employee-requests/:id', require('./middleware/auth').requireAdmin, employeeRequestRoutes.getEmployeeRequestById); // Obtener solicitud por ID (solo admin)
+app.put('/api/employee-requests/:id/approve', require('./middleware/auth').requireAdmin, employeeRequestRoutes.approveEmployeeRequest); // Aprobar solicitud (solo admin)
+app.put('/api/employee-requests/:id/reject', require('./middleware/auth').requireAdmin, employeeRequestRoutes.rejectEmployeeRequest); // Rechazar solicitud (solo admin)
 
 
-// Ruta de health check
+// Ruta de health check - Verificar estado del servidor
 app.get('/health', (req, res) => {
   res.json({
     success: true,
@@ -116,7 +118,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Ruta de API info
+// Ruta de API info - Información sobre los endpoints disponibles
 app.get('/api', (req, res) => {
   res.json({
     success: true,
@@ -124,53 +126,53 @@ app.get('/api', (req, res) => {
     version: '1.0.0',
     endpoints: {
       auth: {
-        'POST /api/auth/register': 'Registrar usuario (público - crea solicitante)',
-        'POST /api/auth/login': 'Iniciar sesión',
-        'POST /api/auth/logout': 'Cerrar sesión',
-        'GET /api/auth/profile': 'Obtener perfil',
-        'PUT /api/auth/profile': 'Actualizar perfil',
-        'PUT /api/auth/change-password': 'Cambiar contraseña',
-        'POST /api/auth/refresh': 'Refrescar token',
+        'POST /api/auth/register': 'Registrar usuario (público - crea solicitante)', // Crear solicitud de registro
+        'POST /api/auth/login': 'Iniciar sesión', // Iniciar sesión
+        'POST /api/auth/logout': 'Cerrar sesión', // Cerrar sesión
+        'GET /api/auth/profile': 'Obtener perfil', // Obtener perfil del usuario autenticado
+        'PUT /api/auth/profile': 'Actualizar perfil', // Actualizar perfil del usuario autenticado
+        'PUT /api/auth/change-password': 'Cambiar contraseña', // Cambiar contraseña del usuario autenticado
+        'POST /api/auth/refresh': 'Refrescar token', // Refrescar token de autenticación
         'POST /api/auth/forgot-password': 'Solicitar recuperación de contraseña (envía email a admin)',
         'POST /api/auth/reset-password': 'Restablecer contraseña con token'
       },
       employees: {
-        'GET /api/employees': 'Listar empleados (admin)',
-        'POST /api/employees': 'Crear empleado (admin)',
-        'PUT /api/employees/:id': 'Actualizar empleado (admin)',
-        'DELETE /api/employees/:id': 'Eliminar empleado (admin)'
+        'GET /api/employees': 'Listar empleados (admin)', // Listar todos los empleados (solo admin)
+        'POST /api/employees': 'Crear empleado (admin)', // Crear empleado (solo admin)
+        'PUT /api/employees/:id': 'Actualizar empleado (admin)', // Actualizar empleado (solo admin)
+        'DELETE /api/employees/:id': 'Eliminar empleado (admin)' // Eliminar empleado (solo admin)
       },
       schedules: {
-        'GET /api/schedules': 'Listar horarios (admin)',
-        'POST /api/schedules': 'Crear horario (admin)',
-        'PUT /api/schedules/:id': 'Actualizar horario (admin)',
-        'DELETE /api/schedules/:id': 'Eliminar horario (admin)',
-        'GET /api/my-schedules': 'Ver mis horarios asignados (empleado)'
+        'GET /api/schedules': 'Listar horarios (admin)', // Listar todos los horarios (solo admin)
+        'POST /api/schedules': 'Crear horario (admin)', // Crear horario (solo admin)
+        'PUT /api/schedules/:id': 'Actualizar horario (admin)', // Actualizar horario (solo admin)
+        'DELETE /api/schedules/:id': 'Eliminar horario (admin)', // Eliminar horario (solo admin)
+        'GET /api/my-schedules': 'Ver mis horarios asignados (empleado)' // Ver horarios asignados al empleado autenticado
       },
       scheduleRequests: {
-        'GET /api/schedule-requests': 'Listar solicitudes de cambio (admin)',
-        'POST /api/schedule-requests': 'Crear solicitud de cambio (empleado)',
-        'PUT /api/schedule-requests/:id': 'Aprobar/rechazar solicitud (admin)'
+        'GET /api/schedule-requests': 'Listar solicitudes de cambio (admin)', // Listar todas las solicitudes de cambio (solo admin)
+        'POST /api/schedule-requests': 'Crear solicitud de cambio (empleado)', // Crear solicitud de cambio (solo empleado)
+        'PUT /api/schedule-requests/:id': 'Aprobar/rechazar solicitud (admin)' // Aprobar/rechazar solicitud (solo admin)
       },
       notifications: {
-        'GET /api/notifications': 'Listar notificaciones del usuario',
-        'GET /api/notifications/admin': 'Listar notificaciones de administrador (solicitudes empleo)',
-        'PUT /api/notifications/:id/read': 'Marcar notificación como leída',
-        'PUT /api/notifications/read-all': 'Marcar todas como leídas',
-        'DELETE /api/notifications/:id': 'Eliminar notificación'
+        'GET /api/notifications': 'Listar notificaciones del usuario', // Listar notificaciones del usuario autenticado
+        'GET /api/notifications/admin': 'Listar notificaciones de administrador (solicitudes empleo)', // Listar notificaciones de administrador (solicitudes empleo)
+        'PUT /api/notifications/:id/read': 'Marcar notificación como leída', // Marcar notificación como leída
+        'PUT /api/notifications/read-all': 'Marcar todas como leídas', // Marcar todas como leídas
+        'DELETE /api/notifications/:id': 'Eliminar notificación' // Eliminar notificación
       },
       employeeRequests: {
-        'GET /api/employee-requests': 'Listar solicitudes de empleo (admin)',
-        'GET /api/employee-requests/my': 'Listar mis solicitudes de empleo',
-        'GET /api/employee-requests/:id': 'Ver solicitud de empleo (admin)',
-        'PUT /api/employee-requests/:id/approve': 'Aprobar solicitud de empleo (admin)',
-        'PUT /api/employee-requests/:id/reject': 'Rechazar solicitud de empleo (admin)'
+        'GET /api/employee-requests': 'Listar solicitudes de empleo (admin)', // Listar todas las solicitudes de empleo (solo admin)
+        'GET /api/employee-requests/my': 'Listar mis solicitudes de empleo', // Listar solicitudes del empleado autenticado
+        'GET /api/employee-requests/:id': 'Ver solicitud de empleo (admin)', // Ver solicitud de empleo por ID (solo admin)
+        'PUT /api/employee-requests/:id/approve': 'Aprobar solicitud de empleo (admin)', // Aprobar solicitud de empleo (solo admin)
+        'PUT /api/employee-requests/:id/reject': 'Rechazar solicitud de empleo (admin)' // Rechazar solicitud de empleo (solo admin)
       }
     }
   });
 });
 
-// Middleware para manejar rutas no encontradas
+// Middleware para manejar rutas no encontradas - Manejar 404
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -180,24 +182,24 @@ app.use((req, res) => {
   });
 });
 
-// Middleware de manejo de errores (debe ir al final)
+// Middleware de manejo de errores (debe ir al final) - Manejar errores globales
 app.use(errorHandler);
 
-// Función para iniciar el servidor
+// Función para iniciar el servidor - Inicializar servidor y base de datos
 const startServer = async () => {
   try {
     // Mostrar configuración de Sequelize antes de conectar
-    console.log('🔍 Configuración actual de Sequelize:');
-    console.log('  Dialect:', sequelize.config.dialect);
-    console.log('  Host:', sequelize.config.host);
-    console.log('  Port:', sequelize.config.port);
-    console.log('  Database:', sequelize.config.database);
-    console.log('  Username:', sequelize.config.username);
+    console.log('🔍 Configuración actual de Sequelize:'); // Mostrar configuración de Sequelize antes de conectar
+    console.log('  Dialect:', sequelize.config.dialect); // Dialecto de la base de datos
+    console.log('  Host:', sequelize.config.host); // Host de la base de datos
+    console.log('  Port:', sequelize.config.port); // Puerto de la base de datos
+    console.log('  Database:', sequelize.config.database); // Nombre de la base de datos
+    console.log('  Username:', sequelize.config.username); // Usuario de la base de datos
     console.log('  NODE_ENV:', process.env.NODE_ENV);
     
     // Esperar a que la base de datos esté disponible
     const { waitForDatabase } = require('./wait-for-db');
-    await waitForDatabase(5, 5000);
+    await waitForDatabase(5, 5000); // Esperar máximo 5 segundos
     
     console.log('✅ Conexión a MySQL establecida correctamente.');
     
@@ -209,14 +211,14 @@ const startServer = async () => {
       console.log('⚠️ No se pudo importar desde SQL, continuando con sincronización normal...');
     }
 
-    // Sincronizar modelos (crear tablas si no existen)
+    // Sincronizar modelos y ajustar columnas faltantes en la base de datos
     console.log('🔄 Sincronizando base de datos...');
-    await sequelize.sync({ alter: false, force: false });
+    await sequelize.sync({ alter: true, force: false });
     console.log('✅ Base de datos sincronizada correctamente.');
 
     // Crear usuario admin por defecto si no existe
     const { User } = require('./models');
-    const adminExists = await User.findOne({ where: { correo: 'admin@example.com' } });
+    const adminExists = await User.findOne({ where: { correo: 'adminexample@admin.com' } });
     
     if (!adminExists) {
       const bcrypt = require('bcryptjs');
@@ -224,25 +226,30 @@ const startServer = async () => {
       
       await User.create({
         nombre: 'Administrador del Sistema',
-        correo: 'admin@example.com',
+        correo: 'adminexample@admin.com',
         contraseña: hashedPassword,
         rol: 'admin',
         is_active: true
       });
       
-      console.log('👤 Usuario administrador creado: admin@example.com / admin123');
+      console.log('👤 Usuario administrador creado: adminexample@admin.com / admin123');
     }
 
-    // Iniciar servidor
+    // Iniciar servidor con http.createServer para controlar maxHeadersCount
     const PORT = process.env.PORT || 3001;
-    const server = app.listen(PORT, () => {
+    const server = http.createServer(app);
+    
+    // Set max header size on the HTTP server
+    server.maxHeadersCount = 1000;
+    
+    server.listen(PORT, () => {
       console.log(`🚀 Servidor iniciado en puerto ${PORT}`);
       console.log(`🌐 API disponible en: http://localhost:${PORT}/api`);
       console.log(`📚 Documentación en: http://localhost:${PORT}/api`);
       console.log(`🏥 Health check en: http://localhost:${PORT}/health`);
       console.log('');
       console.log('🔐 Credenciales de administrador:');
-      console.log('   📧 Email: admin@example.com');
+      console.log('   📧 Email: adminexample@admin.com');
       console.log('   🔑 Password: admin123');
     });
 

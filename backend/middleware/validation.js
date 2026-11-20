@@ -1,9 +1,43 @@
+/**
+ * MIDDLEWARE DE VALIDACIÓN
+ * Archivo: backend/middleware/validation.js
+ * Descripción: Contiene middleware para validar datos de entrada usando express-validator.
+ *              Valida campos de formularios, parámetros de URL y query parameters.
+ *
+ * FUNCIONALIDADES:
+ * - Validación de usuarios (registro, login, actualización)
+ * - Validación de empleados (creación, actualización)
+ * - Validación de horarios (creación, actualización)
+ * - Validación de solicitudes de cambio de horario
+ * - Validación de parámetros de URL y query parameters
+ * - Validación de paginación
+ */
+
 const { body, param, query, validationResult } = require('express-validator');
 
-// Middleware para manejar resultados de validación
+/**
+ * Función auxiliar para parsear fechas locales
+ * @param {string} value - Fecha en formato YYYY-MM-DD
+ * @returns {Date} Objeto Date parseado
+ */
+const parseLocalDate = (value) => {
+  if (!value || typeof value !== 'string') {
+    return new Date(NaN);
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+/**
+ * Middleware para manejar resultados de validación
+ * Verifica si hay errores de validación y los retorna en formato JSON
+ *
+ * Si hay errores, retorna un objeto con detalles de cada campo inválido
+ */
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
-  
+
   if (!errors.isEmpty()) {
     const errorDetails = errors.array().map(error => ({
       field: error.path || error.param,
@@ -23,7 +57,12 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// Validaciones para usuarios
+// ========== VALIDACIONES PARA USUARIOS ==========
+
+/**
+ * Validación para registro de usuarios
+ * Valida los campos requeridos para crear un nuevo usuario
+ */
 const validateUserRegistration = [
   body('nombre')
     .trim()
@@ -55,6 +94,10 @@ const validateUserRegistration = [
   handleValidationErrors
 ];
 
+/**
+ * Validación para login de usuarios
+ * Valida correo y contraseña para autenticación
+ */
 const validateUserLogin = [
   body('correo')
     .trim()
@@ -69,6 +112,10 @@ const validateUserLogin = [
   handleValidationErrors
 ];
 
+/**
+ * Validación para actualización de usuarios
+ * Valida campos opcionales al actualizar un usuario existente
+ */
 const validateUserUpdate = [
   body('nombre')
     .optional()
@@ -98,7 +145,12 @@ const validateUserUpdate = [
   handleValidationErrors
 ];
 
-// Validaciones para empleados
+// ========== VALIDACIONES PARA EMPLEADOS ==========
+
+/**
+ * Validación para creación de empleados
+ * Valida los campos requeridos para crear un nuevo empleado
+ */
 const validateEmployeeCreation = [
   body('posicion')
     .isIn(['cajero', 'supervisor', 'gerente', 'administrativo', 'tecnico', 'operador'])
@@ -128,6 +180,10 @@ const validateEmployeeCreation = [
   handleValidationErrors
 ];
 
+/**
+ * Validación para actualización de empleados
+ * Valida campos opcionales al actualizar un empleado existente
+ */
 const validateEmployeeUpdate = [
   body('posicion')
     .optional()
@@ -155,7 +211,12 @@ const validateEmployeeUpdate = [
   handleValidationErrors
 ];
 
-// Validaciones para horarios
+// ========== VALIDACIONES PARA HORARIOS ==========
+
+/**
+ * Validación para creación de horarios
+ * Valida los campos requeridos para asignar un horario a un empleado
+ */
 const validateScheduleCreation = [
   body('id_empleado')
     .isInt({ min: 1 })
@@ -165,7 +226,7 @@ const validateScheduleCreation = [
     .isISO8601()
     .withMessage('Debe proporcionar una fecha válida')
     .custom((value) => {
-      const fecha = new Date(value);
+      const fecha = parseLocalDate(value);
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
       if (fecha < hoy) {
@@ -191,13 +252,17 @@ const validateScheduleCreation = [
   handleValidationErrors
 ];
 
+/**
+ * Validación para actualización de horarios
+ * Valida campos opcionales al actualizar un horario existente
+ */
 const validateScheduleUpdate = [
   body('fecha')
     .optional()
     .isISO8601()
     .withMessage('Debe proporcionar una fecha válida')
     .custom((value) => {
-      const fecha = new Date(value);
+      const fecha = parseLocalDate(value);
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
       if (fecha < hoy) {
@@ -219,7 +284,12 @@ const validateScheduleUpdate = [
   handleValidationErrors
 ];
 
-// Validaciones para solicitudes de cambio de horario
+// ========== VALIDACIONES PARA SOLICITUDES DE CAMBIO DE HORARIO ==========
+
+/**
+ * Validación para creación de solicitudes de cambio de horario
+ * Valida los campos requeridos para solicitar un cambio de horario
+ */
 const validateScheduleRequestCreation = [
   body('id_empleado')
     .isInt({ min: 1 })
@@ -229,7 +299,7 @@ const validateScheduleRequestCreation = [
     .isISO8601()
     .withMessage('Debe proporcionar una fecha válida')
     .custom((value) => {
-      const fecha = new Date(value);
+      const fecha = parseLocalDate(value);
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
       if (fecha < hoy) {
@@ -261,6 +331,10 @@ const validateScheduleRequestCreation = [
   handleValidationErrors
 ];
 
+/**
+ * Validación para actualización de solicitudes de cambio de horario
+ * Valida campos opcionales al actualizar una solicitud existente
+ */
 const validateScheduleRequestUpdate = [
   body('estado')
     .optional()
@@ -282,7 +356,12 @@ const validateScheduleRequestUpdate = [
   handleValidationErrors
 ];
 
-// Validaciones para parámetros de URL
+// ========== VALIDACIONES PARA PARÁMETROS DE URL Y QUERY ==========
+
+/**
+ * Validación para parámetro ID en URL
+ * Valida que el ID sea un entero positivo
+ */
 const validateIdParam = [
   param('id')
     .isInt({ min: 1 })
@@ -291,7 +370,10 @@ const validateIdParam = [
   handleValidationErrors
 ];
 
-// Validaciones para query parameters
+/**
+ * Validación para query parameters de fechas
+ * Valida parámetros de fecha en query string (filtros por fecha)
+ */
 const validateDateQuery = [
   query('fecha')
     .optional()
@@ -317,6 +399,10 @@ const validateDateQuery = [
   handleValidationErrors
 ];
 
+/**
+ * Validación para query parameters de paginación
+ * Valida parámetros page y limit para paginación de resultados
+ */
 const validatePagination = [
   query('page')
     .optional()
@@ -331,18 +417,21 @@ const validatePagination = [
   handleValidationErrors
 ];
 
+/**
+ * Exportar todos los middleware de validación
+ */
 module.exports = {
-  handleValidationErrors,
-  validateUserRegistration,
-  validateUserLogin,
-  validateUserUpdate,
-  validateEmployeeCreation,
-  validateEmployeeUpdate,
-  validateScheduleCreation,
-  validateScheduleUpdate,
-  validateScheduleRequestCreation,
-  validateScheduleRequestUpdate,
-  validateIdParam,
-  validateDateQuery,
-  validatePagination
+  handleValidationErrors,              // Manejar errores de validación
+  validateUserRegistration,           // Validar registro de usuarios
+  validateUserLogin,                  // Validar login de usuarios
+  validateUserUpdate,                // Validar actualización de usuarios
+  validateEmployeeCreation,          // Validar creación de empleados
+  validateEmployeeUpdate,             // Validar actualización de empleados
+  validateScheduleCreation,           // Validar creación de horarios
+  validateScheduleUpdate,             // Validar actualización de horarios
+  validateScheduleRequestCreation,    // Validar creación de solicitudes de cambio
+  validateScheduleRequestUpdate,     // Validar actualización de solicitudes
+  validateIdParam,                   // Validar parámetro ID en URL
+  validateDateQuery,                 // Validar query parameters de fechas
+  validatePagination                 // Validar query parameters de paginación
 };

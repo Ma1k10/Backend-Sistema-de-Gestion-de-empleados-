@@ -1,6 +1,35 @@
+/**
+ * RUTAS DE NOTIFICACIONES
+ * Archivo: backend/routes/notifications.js
+ * Descripción: Define los controladores para gestión de notificaciones.
+ *              Incluye consulta, marcado como leído y eliminación de notificaciones.
+ *
+ * FUNCIONES:
+ * - getNotifications: Obtener notificaciones del usuario autenticado
+ * - getAdminNotifications: Obtener notificaciones para administradores
+ * - markAsRead: Marcar notificación como leída
+ * - markAllAsRead: Marcar todas las notificaciones como leídas
+ * - deleteNotification: Eliminar notificación
+ * - createNotification: Crear notificación (función interna)
+ * - createAdminNotification: Crear notificación para todos los administradores
+ */
+
 const { Notification, User } = require('../models');
 
-// Obtener todas las notificaciones del usuario autenticado
+/**
+ * Obtener todas las notificaciones del usuario autenticado
+ * Retorna notificaciones con filtros opcionales y paginación
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.query - Query parameters
+ * @param {number} req.query.page - Número de página (default: 1)
+ * @param {number} req.query.limit - Límite por página (default: 50)
+ * @param {string} req.query.unread_only - Filtrar solo no leídas (default: false)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del usuario
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con notificaciones, paginación y conteo de no leídas
+ */
 const getNotifications = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -54,7 +83,19 @@ const getNotifications = async (req, res) => {
   }
 };
 
-// Obtener notificaciones para administradores (solicitudes de empleo)
+/**
+ * Obtener notificaciones para administradores (solicitudes de empleo)
+ * Retorna notificaciones de tipo employment_request para administradores
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.query - Query parameters
+ * @param {number} req.query.page - Número de página (default: 1)
+ * @param {number} req.query.limit - Límite por página (default: 50)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con notificaciones y conteos por tipo
+ */
 const getAdminNotifications = async (req, res) => {
   try {
     if (req.user.rol !== 'admin') {
@@ -129,7 +170,18 @@ const getAdminNotifications = async (req, res) => {
   }
 };
 
-// Marcar notificación como leída
+/**
+ * Marcar notificación como leída
+ * Marca una notificación específica como leída para el usuario autenticado
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID de la notificación
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del usuario
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON confirmando el marcado como leído
+ */
 const markAsRead = async (req, res) => {
   try {
     const { id } = req.params;
@@ -167,7 +219,16 @@ const markAsRead = async (req, res) => {
   }
 };
 
-// Marcar todas las notificaciones como leídas
+/**
+ * Marcar todas las notificaciones como leídas
+ * Marca todas las notificaciones no leídas del usuario autenticado como leídas
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del usuario
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON confirmando el marcado como leído
+ */
 const markAllAsRead = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -196,7 +257,18 @@ const markAllAsRead = async (req, res) => {
   }
 };
 
-// Eliminar notificación
+/**
+ * Eliminar notificación
+ * Elimina una notificación específica del usuario autenticado
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID de la notificación
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del usuario
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON confirmando la eliminación
+ */
 const deleteNotification = async (req, res) => {
   try {
     const { id } = req.params;
@@ -233,7 +305,19 @@ const deleteNotification = async (req, res) => {
   }
 };
 
-// Crear notificación (función interna)
+/**
+ * Crear notificación (función interna)
+ * Crea una notificación para un usuario específico
+ *
+ * @param {number} userId - ID del usuario destinatario
+ * @param {string} title - Título de la notificación
+ * @param {string} message - Mensaje de la notificación
+ * @param {string} type - Tipo de notificación (default: 'info')
+ * @param {number} referenceId - ID del objeto relacionado (opcional)
+ * @param {string} referenceType - Tipo del objeto relacionado (opcional)
+ * @param {Object} transaction - Transacción de Sequelize (opcional)
+ * @returns {Promise<Model>} Promesa que resuelve a la notificación creada
+ */
 const createNotification = async (userId, title, message, type = 'info', referenceId = null, referenceType = null, transaction = null) => {
   try {
     const notification = await Notification.create({
@@ -252,7 +336,17 @@ const createNotification = async (userId, title, message, type = 'info', referen
   }
 };
 
-// Crear notificación para todos los administradores
+/**
+ * Crear notificación para todos los administradores
+ * Crea una notificación para todos los usuarios con rol 'admin' activos
+ *
+ * @param {string} title - Título de la notificación
+ * @param {string} message - Mensaje de la notificación
+ * @param {string} type - Tipo de notificación (default: 'info')
+ * @param {number} referenceId - ID del objeto relacionado (opcional)
+ * @param {string} referenceType - Tipo del objeto relacionado (opcional)
+ * @returns {Promise<Array>} Promesa que resuelve a un array de notificaciones creadas
+ */
 const createAdminNotification = async (title, message, type = 'info', referenceId = null, referenceType = null) => {
   try {
     const admins = await User.findAll({

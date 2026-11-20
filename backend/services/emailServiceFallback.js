@@ -1,6 +1,31 @@
+/**
+ * SERVICIO DE EMAIL FALLBACK (NODEMAILER/GMAIL SMTP)
+ * Archivo: backend/services/emailServiceFallback.js
+ * Descripción: Servicio de fallback para envío de emails usando Nodemailer con Gmail SMTP.
+ *              Se utiliza cuando SendGrid no está disponible o configurado.
+ *              Proporciona los mismos métodos que el servicio de SendGrid.
+ *
+ * MÉTODOS:
+ * - sendEmail: Enviar email genérico
+ * - sendWelcomeEmail: Enviar email de bienvenida
+ * - sendPasswordResetEmail: Enviar email de restablecimiento de contraseña
+ * - sendScheduleChangeNotification: Enviar notificación de cambio de horario
+ * - sendEmployeeApprovalNotification: Enviar notificación de aprobación de empleado
+ * - sendEmployeeRejectionNotification: Enviar notificación de rechazo de empleado
+ * - sendScheduleAssignedEmail: Enviar email de horario asignado
+ */
+
 const nodemailer = require('nodemailer');
 
+/**
+ * Clase EmailServiceFallback
+ * Servicio de fallback para envío de emails usando Nodemailer con Gmail SMTP
+ */
 class EmailServiceFallback {
+  /**
+   * Constructor de EmailServiceFallback
+   * Inicializa la configuración de Nodemailer y variables de entorno
+   */
   constructor() {
     this.fromEmail = process.env.EMAIL_USER || process.env.SENDGRID_FROM_EMAIL;
     this.frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -17,6 +42,16 @@ class EmailServiceFallback {
     });
   }
 
+  /**
+   * Enviar email genérico
+   * Envía un email usando Nodemailer con contenido HTML y texto plano
+   *
+   * @param {string} to - Dirección email del destinatario
+   * @param {string} subject - Asunto del email
+   * @param {string} htmlContent - Contenido HTML del email
+   * @param {string} textContent - Contenido de texto plano (opcional)
+   * @returns {Promise<Object>} Promesa que resuelve al resultado de Nodemailer
+   */
   async sendEmail(to, subject, htmlContent, textContent = null) {
     try {
       const msg = {
@@ -36,18 +71,42 @@ class EmailServiceFallback {
     }
   }
 
+  /**
+   * Eliminar etiquetas HTML de un string
+   * Convierte contenido HTML a texto plano
+   *
+   * @param {string} html - Contenido HTML
+   * @returns {string} Texto plano sin etiquetas HTML
+   */
   stripHtml(html) {
     return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
   }
 
   // Plantillas de email (mismas que SendGrid pero usando Gmail)
 
+  /**
+   * Enviar email de bienvenida
+   * Envía un email de bienvenida a un nuevo usuario usando Gmail SMTP
+   *
+   * @param {string} userEmail - Email del usuario
+   * @param {string} userName - Nombre del usuario
+   * @returns {Promise<Object>} Promesa que resuelve al resultado del envío
+   */
   async sendWelcomeEmail(userEmail, userName) {
     const subject = '🎉 Bienvenido al Sistema de Gestión de Horarios';
     const html = this.getWelcomeTemplate(userName);
     return this.sendEmail(userEmail, subject, html);
   }
 
+  /**
+   * Enviar email de restablecimiento de contraseña
+   * Envía un email con enlace para restablecer la contraseña usando Gmail SMTP
+   *
+   * @param {string} userEmail - Email del usuario
+   * @param {string} userName - Nombre del usuario
+   * @param {string} resetToken - Token de restablecimiento
+   * @returns {Promise<Object>} Promesa que resuelve al resultado del envío
+   */
   async sendPasswordResetEmail(userEmail, userName, resetToken) {
     const subject = '🔒 Restablecimiento de Contraseña';
     const resetUrl = `${this.frontendUrl}/reset-password?token=${resetToken}`;
@@ -55,24 +114,60 @@ class EmailServiceFallback {
     return this.sendEmail(userEmail, subject, html);
   }
 
+  /**
+   * Enviar notificación de cambio de horario
+   * Envía un email notificando un cambio en el horario del empleado usando Gmail SMTP
+   *
+   * @param {string} userEmail - Email del usuario
+   * @param {string} userName - Nombre del usuario
+   * @param {Object} changeDetails - Detalles del cambio (type, date, oldSchedule, newSchedule, reason)
+   * @returns {Promise<Object>} Promesa que resuelve al resultado del envío
+   */
   async sendScheduleChangeNotification(userEmail, userName, changeDetails) {
     const subject = '📅 Notificación de Cambio de Horario';
     const html = this.getScheduleChangeTemplate(userName, changeDetails);
     return this.sendEmail(userEmail, subject, html);
   }
 
+  /**
+   * Enviar notificación de aprobación de empleado
+   * Envía un email notificando que la solicitud de empleo fue aprobada usando Gmail SMTP
+   *
+   * @param {string} userEmail - Email del usuario
+   * @param {string} userName - Nombre del usuario
+   * @param {string} approvedBy - Nombre del administrador que aprobó
+   * @returns {Promise<Object>} Promesa que resuelve al resultado del envío
+   */
   async sendEmployeeApprovalNotification(userEmail, userName, approvedBy) {
     const subject = '✅ Solicitud de Empleado Aprobada';
     const html = this.getEmployeeApprovalTemplate(userName, approvedBy);
     return this.sendEmail(userEmail, subject, html);
   }
 
+  /**
+   * Enviar notificación de rechazo de empleado
+   * Envía un email notificando que la solicitud de empleo fue rechazada usando Gmail SMTP
+   *
+   * @param {string} userEmail - Email del usuario
+   * @param {string} userName - Nombre del usuario
+   * @param {string} rejectionReason - Motivo del rechazo
+   * @returns {Promise<Object>} Promesa que resuelve al resultado del envío
+   */
   async sendEmployeeRejectionNotification(userEmail, userName, rejectionReason) {
     const subject = '❌ Solicitud de Empleado Rechazada';
     const html = this.getEmployeeRejectionTemplate(userName, rejectionReason);
     return this.sendEmail(userEmail, subject, html);
   }
 
+  /**
+   * Enviar email de horario asignado
+   * Envía un email notificando que se asignó un nuevo horario usando Gmail SMTP
+   *
+   * @param {string} userEmail - Email del usuario
+   * @param {string} userName - Nombre del usuario
+   * @param {Object} scheduleDetails - Detalles del horario (shift, schedule, startDate, endDate, department)
+   * @returns {Promise<Object>} Promesa que resuelve al resultado del envío
+   */
   async sendScheduleAssignedEmail(userEmail, userName, scheduleDetails) {
     const subject = '📋 Nuevo Horario Asignado';
     const html = this.getScheduleAssignedTemplate(userName, scheduleDetails);
@@ -124,7 +219,7 @@ class EmailServiceFallback {
       </html>
     `;
   }
-
+  // Template para restablecimiento de contraseña
   getPasswordResetTemplate(userName, resetUrl) {
     return `
       <!DOCTYPE html>
@@ -172,7 +267,8 @@ class EmailServiceFallback {
       </html>
     `;
   }
-
+ 
+  // Template para notificación de cambio de horario
   getScheduleChangeTemplate(userName, changeDetails) {
     return `
       <!DOCTYPE html>
@@ -232,7 +328,7 @@ class EmailServiceFallback {
       </html>
     `;
   }
-
+  // Template para notificación de aprobación de empleado
   getEmployeeApprovalTemplate(userName, approvedBy) {
     return `
       <!DOCTYPE html>
@@ -277,6 +373,7 @@ class EmailServiceFallback {
     `;
   }
 
+  // Template para notificación de rechazo de empleado
   getEmployeeRejectionTemplate(userName, rejectionReason) {
     return `
       <!DOCTYPE html>
@@ -326,6 +423,7 @@ class EmailServiceFallback {
     `;
   }
 
+  // Template para notificación de asignación de horario
   getScheduleAssignedTemplate(userName, scheduleDetails) {
     return `
       <!DOCTYPE html>

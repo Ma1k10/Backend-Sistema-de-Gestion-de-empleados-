@@ -1,7 +1,28 @@
+/**
+ * RUTAS DE SOLICITUDES DE EMPLEO
+ * Archivo: backend/routes/employeeRequests.js
+ * Descripción: Define los controladores para gestión de solicitudes de empleo.
+ *              Incluye consulta, aprobación y rechazo de solicitudes.
+ *
+ * FUNCIONES:
+ * - validatePosition: Validar posición contra valores ENUM válidos (helper)
+ * - getEmployeeRequests: Obtener todas las solicitudes (solo admin)
+ * - getEmployeeRequestById: Obtener solicitud por ID (solo admin)
+ * - approveEmployeeRequest: Aprobar solicitud (solo admin)
+ * - rejectEmployeeRequest: Rechazar solicitud (solo admin)
+ * - getMyEmployeeRequests: Obtener solicitudes del usuario autenticado
+ */
+
 const { EmployeeRequest, User, Employee } = require('../models');
 const { createNotification } = require('./notifications');
 
-// Función para validar posición contra valores ENUM válidos
+/**
+ * Función para validar posición contra valores ENUM válidos
+ * Normaliza la posición de trabajo a un valor válido del ENUM
+ *
+ * @param {string} position - Posición a validar
+ * @returns {string} Posición validada o valor por defecto 'operador'
+ */
 const validatePosition = (position) => {
   // Si no hay posición, retornar valor por defecto
   if (!position || typeof position !== 'string') {
@@ -35,7 +56,20 @@ const validatePosition = (position) => {
   return positionMapping[normalizedPosition] || 'operador';
 };
 
-// Obtener todas las solicitudes de empleo (solo admin)
+/**
+ * Obtener todas las solicitudes de empleo (solo admin)
+ * Retorna solicitudes con filtros opcionales por estado y paginación
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.query - Query parameters
+ * @param {string} req.query.estado - Filtro por estado (opcional)
+ * @param {number} req.query.page - Número de página (default: 1)
+ * @param {number} req.query.limit - Límite por página (default: 50)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con solicitudes y metadata de paginación
+ */
 const getEmployeeRequests = async (req, res) => {
   try {
     const { page = 1, limit = 50, estado = 'all' } = req.query;
@@ -82,7 +116,18 @@ const getEmployeeRequests = async (req, res) => {
   }
 };
 
-// Obtener solicitud de empleo por ID (solo admin)
+/**
+ * Obtener solicitud de empleo por ID (solo admin)
+ * Retorna los detalles de una solicitud específica
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID de la solicitud
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con los datos de la solicitud
+ */
 const getEmployeeRequestById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -122,7 +167,22 @@ const getEmployeeRequestById = async (req, res) => {
   }
 };
 
-// Aprobar solicitud de empleo (solo admin)
+/**
+ * Aprobar solicitud de empleo (solo admin)
+ * Aprueba una solicitud de empleo, convierte al usuario en empleado y crea el registro
+ * Usa una transacción para asegurar consistencia de datos
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID de la solicitud
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.posicion - Posición oficial para el empleado (opcional)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del administrador
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con la solicitud aprobada
+ */
 const approveEmployeeRequest = async (req, res) => {
   try {
     console.log('🔄 Iniciando aprobación de solicitud de empleo...');
@@ -258,7 +318,22 @@ const approveEmployeeRequest = async (req, res) => {
   }
 };
 
-// Rechazar solicitud de empleo (solo admin)
+/**
+ * Rechazar solicitud de empleo (solo admin)
+ * Rechaza una solicitud de empleo con un motivo opcional
+ * Usa una transacción para asegurar consistencia de datos
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID de la solicitud
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {string} req.body.motivo_rechazo - Motivo del rechazo (opcional)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del administrador
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con la solicitud rechazada
+ */
 const rejectEmployeeRequest = async (req, res) => {
   try {
     const { id } = req.params;
@@ -341,7 +416,16 @@ const rejectEmployeeRequest = async (req, res) => {
   }
 };
 
-// Obtener mis solicitudes de empleo (usuario autenticado)
+/**
+ * Obtener mis solicitudes de empleo (usuario autenticado)
+ * Retorna las solicitudes de empleo del usuario autenticado
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del usuario
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con las solicitudes del usuario
+ */
 const getMyEmployeeRequests = async (req, res) => {
   try {
     const userId = req.user.id;

@@ -1,6 +1,34 @@
+/**
+ * RUTAS DE HORARIOS
+ * Archivo: backend/routes/schedules.js
+ * Descripción: Define los controladores para gestión de horarios de trabajo.
+ *              Incluye CRUD de horarios y consulta de horarios propios.
+ *
+ * FUNCIONES:
+ * - getSchedules: Obtener todos los horarios con filtros y paginación
+ * - createSchedule: Crear horario (solo admin)
+ * - getScheduleById: Obtener horario por ID
+ * - updateSchedule: Actualizar horario (solo admin)
+ * - deleteSchedule: Eliminar horario (solo admin)
+ * - getMySchedules: Obtener horarios del empleado autenticado
+ */
+
 const { Employee, Schedule } = require('../models');
 
-// Obtener todos los horarios
+/**
+ * Obtener todos los horarios
+ * Retorna horarios con filtros opcionales por empleado y rango de fechas, con paginación
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.query - Query parameters
+ * @param {number} req.query.id_empleado - Filtro por ID de empleado (opcional)
+ * @param {string} req.query.fecha_inicio - Fecha inicio del rango (opcional)
+ * @param {string} req.query.fecha_fin - Fecha fin del rango (opcional)
+ * @param {number} req.query.page - Número de página (default: 1)
+ * @param {number} req.query.limit - Límite por página (default: 50)
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con horarios y metadata de paginación
+ */
 const getSchedules = async (req, res) => {
   try {
     const { 
@@ -73,7 +101,21 @@ const getSchedules = async (req, res) => {
   }
 };
 
-// Crear horario (solo admin)
+/**
+ * Crear horario (solo admin)
+ * Crea un nuevo horario de trabajo para un empleado
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {number} req.body.id_empleado - ID del empleado
+ * @param {string} req.body.fecha - Fecha del horario
+ * @param {string} req.body.hora_inicio - Hora de inicio
+ * @param {string} req.body.hora_fin - Hora de fin
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con el horario creado
+ */
 const createSchedule = async (req, res) => {
   try {
     const { id_empleado, fecha, hora_inicio, hora_fin } = req.body;
@@ -132,15 +174,64 @@ const createSchedule = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creando horario:', error);
+    
+    // Extract validation errors from Sequelize extraer y responder de forma controlada los errores de validación que ocurren al interactuar con una base de datos.
+    if (error.name === 'SequelizeValidationError') {
+      const validationErrors = error.errors.map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Error de validación',
+        error: 'VALIDATION_ERROR',
+        details: validationErrors
+      });
+    }
+    
+    // Handle database errors capturar y responder de forma controlada a los fallos que ocurren al interactuar con una base de datos.
+    if (error.name === 'SequelizeDatabaseError') {
+      // Handle foreign key constraint violations gestionar o manejar las violaciones de restricciones de clave foránea en una base de datos
+      if (error.original?.code === 'ER_NO_REFERENCED_ROW_2') {
+        return res.status(400).json({
+          success: false,
+          message: 'El empleado seleccionado no existe',
+          error: 'EMPLOYEE_NOT_FOUND'
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'Error de base de datos',
+        error: 'DATABASE_ERROR',
+        details: error.message
+      });
+    }
+    
+    // Handle foreign key constraint errors from Sequelize gestionar o manejar las violaciones de restricciones de clave foránea en una base de datos
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'El empleado seleccionado no existe',
+        error: 'EMPLOYEE_NOT_FOUND'
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Error al crear horario',
-      error: 'CREATE_SCHEDULE_ERROR'
+      error: 'CREATE_SCHEDULE_ERROR',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
 
-// Obtener horario por ID
+/**
+ * Obtener horario por ID
+ * Retorna los detalles de un horario específico incluyendo datos del empleado
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID del horario
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con los datos del horario
+ */
 const getScheduleById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -179,7 +270,23 @@ const getScheduleById = async (req, res) => {
   }
 };
 
-// Actualizar horario (solo admin)
+/**
+ * Actualizar horario (solo admin)
+ * Permite al administrador actualizar un horario existente
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID del horario
+ * @param {Object} req.body - Cuerpo de la solicitud
+ * @param {number} req.body.id_empleado - Nuevo ID de empleado (opcional)
+ * @param {string} req.body.fecha - Nueva fecha (opcional)
+ * @param {string} req.body.hora_inicio - Nueva hora de inicio (opcional)
+ * @param {string} req.body.hora_fin - Nueva hora de fin (opcional)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con el horario actualizado
+ */
 const updateSchedule = async (req, res) => {
   try {
     const { id } = req.params;
@@ -258,15 +365,49 @@ const updateSchedule = async (req, res) => {
     });
   } catch (error) {
     console.error('Error actualizando horario:', error);
+    
+    // Extract validation errors from Sequelize
+    if (error.name === 'SequelizeValidationError') {
+      const validationErrors = error.errors.map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Error de validación',
+        error: 'VALIDATION_ERROR',
+        details: validationErrors
+      });
+    }
+    
+    // Extract database constraint errors
+    if (error.name === 'SequelizeDatabaseError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Error de base de datos',
+        error: 'DATABASE_ERROR',
+        details: error.message
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Error al actualizar horario',
-      error: 'UPDATE_SCHEDULE_ERROR'
+      error: 'UPDATE_SCHEDULE_ERROR',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
 
-// Eliminar horario (solo admin)
+/**
+ * Eliminar horario (solo admin)
+ * Permite al administrador eliminar un horario del sistema
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.params - Parámetros de la URL
+ * @param {string} req.params.id - ID del horario a eliminar
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'admin')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON confirmando la eliminación
+ */
 const deleteSchedule = async (req, res) => {
   try {
     const { id } = req.params;
@@ -298,7 +439,22 @@ const deleteSchedule = async (req, res) => {
   }
 };
 
-// Obtener horarios del empleado logueado
+/**
+ * Obtener horarios del empleado autenticado
+ * Retorna los horarios del empleado logueado con filtros opcionales y paginación
+ *
+ * @param {Object} req - Objeto de solicitud Express
+ * @param {Object} req.query - Query parameters
+ * @param {string} req.query.fecha_inicio - Fecha inicio del rango (opcional)
+ * @param {string} req.query.fecha_fin - Fecha fin del rango (opcional)
+ * @param {number} req.query.page - Número de página (default: 1)
+ * @param {number} req.query.limit - Límite por página (default: 50)
+ * @param {Object} req.user - Usuario autenticado (del middleware)
+ * @param {number} req.user.id - ID del usuario
+ * @param {string} req.user.rol - Rol del usuario (debe ser 'empleado')
+ * @param {Object} res - Objeto de respuesta Express
+ * @returns {Object} Respuesta JSON con horarios y metadata de paginación
+ */
 const getMySchedules = async (req, res) => {
   try {
     const { 

@@ -1,7 +1,25 @@
+/**
+ * SCRIPT DE INICIALIZACIÓN DE BASE DE DATOS
+ * Archivo: backend/scripts/init-database.js
+ * Descripción: Script para inicializar la base de datos desde un archivo SQL.
+ *              Lee el archivo sistema_horarios.sql y lo ejecuta en MySQL.
+ *              Si el archivo no existe o falla, retorna false para usar
+ *              sincronización de Sequelize como fallback.
+ *
+ * FUNCIONES:
+ * - initDatabase: Inicializa la base de datos desde archivo SQL
+ */
+
 const fs = require('fs');
 const path = require('path');
 const mysql = require('mysql2/promise');
 
+/**
+ * Inicializar base de datos desde archivo SQL
+ * Lee el archivo sistema_horarios.sql y lo ejecuta en MySQL
+ *
+ * @returns {Promise<boolean>} Promesa que resuelve a true si la importación fue exitosa, false si se debe usar fallback
+ */
 const initDatabase = async () => {
   try {
     console.log('🔄 Inicializando base de datos desde archivo SQL...');
